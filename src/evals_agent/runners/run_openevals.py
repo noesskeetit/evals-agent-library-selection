@@ -79,6 +79,36 @@ def _build_judge_client(config: JudgeConfig) -> OpenEvalsJudgeClient:
     )
 
 
+def _eval_inputs(
+    agent_run,
+    outputs: list[dict[str, Any]],
+    reference_outputs: list[dict[str, Any]],
+    tool_args_match_mode: str,
+) -> dict[str, Any]:
+    return {
+        "blackbox_llm_as_judge": {
+            "inputs": agent_run.input,
+            "outputs": final_answer_text(agent_run),
+            "reference_outputs": expected_blackbox_answer_for(agent_run),
+            "prompt": (
+                blackbox_rubric_for(agent_run).strip()
+                + "\nInputs:\n{inputs}\nOutputs:\n{outputs}\nReference:\n{reference_outputs}"
+            ),
+            "feedback_key": "blackbox_quality",
+        },
+        "trajectory_match": {
+            "outputs": outputs,
+            "reference_outputs": reference_outputs,
+            "trajectory_match_mode": "strict",
+            "tool_args_match_mode": tool_args_match_mode,
+        },
+        "trajectory_llm_as_judge": {
+            "outputs": outputs,
+            "reference_outputs": reference_outputs,
+        },
+    }
+
+
 def run(dry_run: bool, task: str, agent: str = "fixture") -> dict:
     agent_run = run_agent_by_name(agent, task)
     eval_input = agent_run.input
@@ -89,6 +119,12 @@ def run(dry_run: bool, task: str, agent: str = "fixture") -> dict:
     reference_outputs = reference_trajectory_messages(agent_run)
     tool_args_match_mode = (
         "ignore" if agent_run.metadata.get("agent_type") == "weather_llm" else "exact"
+    )
+    payload["eval_inputs"] = _eval_inputs(
+        agent_run,
+        outputs,
+        reference_outputs,
+        tool_args_match_mode,
     )
     match_evaluator = create_trajectory_match_evaluator(
         trajectory_match_mode="strict",

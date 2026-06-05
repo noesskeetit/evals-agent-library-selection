@@ -1,10 +1,5 @@
 {
-  "captured_at": "2026-06-04T23:35:31.788729+00:00",
-  "local_environment": {
-    "python": "3.12.13",
-    "pip_checked": true,
-    "workspace": "/Users/aogabbasov/evals"
-  },
+  "captured_at": "2026-06-05T12:26:28.820360+00:00",
   "sources": {
     "openevals_repo": "https://github.com/langchain-ai/openevals",
     "openevals_readme_raw": "https://raw.githubusercontent.com/langchain-ai/openevals/main/README.md",
@@ -12,13 +7,12 @@
     "deepeval_readme_raw": "https://raw.githubusercontent.com/confident-ai/deepeval/main/README.md",
     "deepeval_tracing_docs": "https://deepeval.com/docs/evaluation-llm-tracing",
     "deepeval_agent_tracing_docs": "https://deepeval.com/guides/guides-tracing-ai-agents",
-    "langsmith_otel_docs": "https://docs.langchain.com/langsmith/collector-proxy",
+    "langsmith_otel_docs": "https://docs.langchain.com/langsmith/trace-with-opentelemetry",
     "langsmith_evaluate_otel_docs": "https://docs.langchain.com/langsmith/evaluate-with-opentelemetry"
   },
   "libraries": {
     "openevals": {
       "github": {
-        "repo_api_error": null,
         "stars": 1068,
         "forks": 97,
         "watchers": 11,
@@ -28,7 +22,6 @@
         "updated_at": "2026-06-03T23:49:59Z",
         "pushed_at": "2026-06-03T23:48:00Z",
         "license": "MIT",
-        "commits_visible_count": null,
         "latest_releases": [
           {
             "tag_name": "openevals==0.2.0",
@@ -65,31 +58,31 @@
           {
             "sha": "6ecf9b54e13e",
             "date": "2026-05-19T21:53:36Z",
-            "message": "Merge pull request #194 from langchain-ai/dependabot/npm_and_yarn/js/npm_and_yarn-da0aa30ced",
+            "message": "Merge pull request #194 from langchain-ai/dependabot/npm_and_yarn/js/npm_and_yarn-da0aa30ced\n\nchore(deps): Bump brace-expansion from 5.0.5 to 5.0.6 in /js in the npm_and_yarn group across 1 directory",
             "author_login": "jkennedyvz"
           },
           {
             "sha": "542a9040e6fc",
             "date": "2026-05-19T21:33:02Z",
-            "message": "chore(deps): update yarn.lock for brace-expansion 5.0.6",
+            "message": "chore(deps): update yarn.lock for brace-expansion 5.0.6\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
             "author_login": "jkennedyvz"
           },
           {
             "sha": "7bf0d3b7a3aa",
             "date": "2026-05-19T21:28:53Z",
-            "message": "Merge pull request #195 from langchain-ai/dependabot/uv/python/uv-d665ee01e3",
+            "message": "Merge pull request #195 from langchain-ai/dependabot/uv/python/uv-d665ee01e3\n\nchore(deps): Bump idna from 3.10 to 3.15 in /python in the uv group across 1 directory",
             "author_login": "jkennedyvz"
           },
           {
             "sha": "215d2764c88d",
             "date": "2026-05-19T20:06:47Z",
-            "message": "chore(deps): Bump idna in /python in the uv group across 1 directory",
+            "message": "chore(deps): Bump idna in /python in the uv group across 1 directory\n\nBumps the uv group with 1 update in the /python directory: [idna](https://github.com/kjd/idna).\n\n\nUpdates `idna` from 3.10 to 3.15\n- [Release notes](https://github.com/kjd/idna/releases)\n- [Changelog](https://github.com/kjd/idna/blob/master/HISTORY.md)\n- [Commits](https://github.com/kjd/idna/compare/v3.10...v3.15)\n\n---\nupdated-dependencies:\n- dependency-name: idna\n  dependency-version: '3.15'\n  dependency-type: indirect\n  dependency-group: uv\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
             "author_login": "dependabot[bot]"
           },
           {
             "sha": "51566d198b28",
             "date": "2026-05-19T02:25:45Z",
-            "message": "Merge pull request #193 from langchain-ai/dependabot/uv/python/uv-547659a86b",
+            "message": "Merge pull request #193 from langchain-ai/dependabot/uv/python/uv-547659a86b\n\nchore(deps): Bump langsmith from 0.7.31 to 0.8.0 in /python in the uv group across 1 directory",
             "author_login": "jkennedyvz"
           }
         ],
@@ -114,15 +107,9 @@
             "login": "dependabot[bot]",
             "contributions": 35
           }
-        ],
-        "api_errors": {
-          "releases": null,
-          "commits": null,
-          "contributors": null
-        }
+        ]
       },
       "pypi": {
-        "api_error": null,
         "version": "0.2.0",
         "summary": "Open-source evaluators for LLM applications",
         "requires_python": ">=3.10",
@@ -130,28 +117,23 @@
         "latest_upload_time": "2026-04-07T19:45:22.749300Z",
         "release_count": 60
       },
-      "pypistats_recent": {
-        "api_error": "HTTP 429: Too Many Requests"
-      },
       "capability_notes": {
-        "blackbox_llm_as_judge": "README documents create_llm_as_judge with custom prompts, scoring, models, structured output.",
-        "trajectory_eval": "README has dedicated Agent trajectory section: trajectory match, strict/unordered/subset/superset, tool args modes, trajectory LLM-as-judge.",
-        "tracing": "README points to LangSmith integration; LangSmith has OpenTelemetry trace ingestion and evaluation docs, but OpenEvals itself is primarily evaluator functions."
+        "blackbox_llm_as_judge": "README documents create_llm_as_judge with custom prompts, scoring, models, and structured output.",
+        "trajectory_eval": "README documents trajectory match modes, tool args match modes, and trajectory LLM-as-judge.",
+        "tracing": "OpenEvals is primarily evaluator functions; LangSmith provides the OpenTelemetry trace ingestion/evaluation path in the same ecosystem."
       }
     },
     "deepeval": {
       "github": {
-        "repo_api_error": null,
-        "stars": 15920,
-        "forks": 1491,
+        "stars": 15931,
+        "forks": 1492,
         "watchers": 61,
-        "open_issues_and_prs": 272,
+        "open_issues_and_prs": 274,
         "default_branch": "main",
         "created_at": "2023-08-10T05:35:04Z",
-        "updated_at": "2026-06-04T20:15:21Z",
-        "pushed_at": "2026-06-04T18:37:13Z",
+        "updated_at": "2026-06-05T10:33:20Z",
+        "pushed_at": "2026-06-05T09:54:34Z",
         "license": "Apache-2.0",
-        "commits_visible_count": null,
         "latest_releases": [
           {
             "tag_name": "v4.0.5",
@@ -186,40 +168,40 @@
         ],
         "latest_commits": [
           {
+            "sha": "0431258b7d2b",
+            "date": "2026-06-05T09:54:30Z",
+            "message": "updated docs",
+            "author_login": "penguine-ip"
+          },
+          {
             "sha": "3883665dcb73",
-            "date": "2026-06-04T18:37:12Z",
+            "date": "2026-06-04T18:36:57Z",
             "message": "updated inspect hint",
             "author_login": "penguine-ip"
           },
           {
             "sha": "a82569183e61",
             "date": "2026-06-04T15:15:49Z",
-            "message": "Merge pull request #2722 from Aarkin7/fix/gemini-model-cost-calculation",
+            "message": "Merge pull request #2722 from Aarkin7/fix/gemini-model-cost-calculation\n\nFix GeminiModel always reporting $0 evaluation cost",
             "author_login": "A-Vamshi"
           },
           {
             "sha": "806fab3af905",
             "date": "2026-06-04T14:03:05Z",
-            "message": "Merge pull request #2721 from StressTestor/fix/save-as-retrieved-context-data",
+            "message": "Merge pull request #2721 from StressTestor/fix/save-as-retrieved-context-data\n\nfix(dataset): serialize RetrievedContextData in save_as instead of crashing",
             "author_login": "penguine-ip"
           },
           {
             "sha": "db86236211eb",
             "date": "2026-06-04T14:02:45Z",
-            "message": "Merge pull request #2720 from Aarkin7/fix/turn-faithfulness-empty-verdicts-tuple",
-            "author_login": "penguine-ip"
-          },
-          {
-            "sha": "8ed5b3b96575",
-            "date": "2026-06-04T14:02:13Z",
-            "message": "Merge pull request #2719 from A-Vamshi/fixIntegrationTests",
+            "message": "Merge pull request #2720 from Aarkin7/fix/turn-faithfulness-empty-verdicts-tuple\n\nFix TurnFaithfulnessMetric crash on assistant turns with no claims",
             "author_login": "penguine-ip"
           }
         ],
         "top_contributors_sample": [
           {
             "login": "penguine-ip",
-            "contributions": 4365
+            "contributions": 4366
           },
           {
             "login": "A-Vamshi",
@@ -237,15 +219,9 @@
             "login": "spike-spiegel-21",
             "contributions": 732
           }
-        ],
-        "api_errors": {
-          "releases": null,
-          "commits": null,
-          "contributors": null
-        }
+        ]
       },
       "pypi": {
-        "api_error": null,
         "version": "4.0.5",
         "summary": "The LLM Evaluation Framework",
         "requires_python": "<4.0,>=3.9",
@@ -253,19 +229,13 @@
           "Documentation": "https://deepeval.com",
           "Repository": "https://github.com/confident-ai/deepeval"
         },
-        "latest_upload_time": "2026-05-28T18:09:55.460344Z",
+        "latest_upload_time": "2026-05-28T18:09:53.137366Z",
         "release_count": 502
       },
-      "pypistats_recent": {
-        "api_error": null,
-        "last_day": 357720,
-        "last_month": 4628371,
-        "last_week": 1704746
-      },
       "capability_notes": {
-        "blackbox_llm_as_judge": "README quickstart uses GEval over LLMTestCase as end-to-end blackbox evaluation.",
-        "trajectory_eval": "README lists agentic metrics: task completion, tool correctness, goal accuracy, step efficiency, plan adherence, plan quality, tool use, argument correctness.",
-        "tracing": "Docs include deepeval.tracing observe/update_current_trace/update_current_span, framework integrations, and agent tracing guide mentioning OpenTelemetry export to Confident AI for some integrations."
+        "blackbox_llm_as_judge": "GEval over LLMTestCase is the natural blackbox route.",
+        "trajectory_eval": "Agent trajectory support is available through agentic metrics and composition such as ToolCorrectness plus GEval over serialized traces.",
+        "tracing": "Docs include deepeval.tracing observe/update_current_trace/update_current_span and Confident AI tracing/OTEL routes."
       }
     }
   }

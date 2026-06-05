@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-06-05T02:10:29.084286+00:00",
+  "captured_at": "2026-06-05T12:45:08.932092+00:00",
   "task": "Eval Agents base path library selection; four-way test matrix on a live LLM weather agent.",
   "agent_under_test": {
     "type": "weather_llm",
@@ -27,8 +27,8 @@
     "deepeval": ".venv/bin/python -m evals_agent.runners.run_deepeval --agent weather"
   },
   "artifacts": {
-    "openevals": "artifacts/openevals/20260605T020838Z.json",
-    "deepeval": "artifacts/deepeval/20260605T020938Z.json"
+    "openevals": "artifacts/openevals/20260605T124343Z.json",
+    "deepeval": "artifacts/deepeval/20260605T124504Z.json"
   },
   "variants": [
     {
@@ -36,12 +36,16 @@
       "library": "openevals",
       "result_key": "trajectory_llm_as_judge",
       "score": true,
+      "success": null,
       "comment": "The actual trajectory is identical to the reference trajectory. It first geocodes Moscow, Russia, then uses the resulting coordinates to get a 3-day weather forecast. This matches the reference exactly, making it semantically equivalent, logical, and efficient. Thus, the score should be: true.",
+      "threshold": null,
+      "raw_key": "trajectory_accuracy",
       "supporting_check": {
-        "key": "trajectory_strict_match",
         "score": true,
+        "success": null,
         "comment": null,
-        "metadata": null
+        "threshold": null,
+        "raw_key": "trajectory_strict_match"
       },
       "assessment": "Best native fit for reference trajectory checks; direct trajectory APIs are ergonomic."
     },
@@ -50,7 +54,10 @@
       "library": "openevals",
       "result_key": "blackbox_llm_as_judge",
       "score": true,
-      "comment": "The final answer provides a concise 3-day weather plan for Moscow with specific dates (June 5-7), temperature highs and lows, precipitation (none), wind speeds, and practical clothing advice. It meets all criteria: mentions forecast dates, temperature, precipitation/wind evidence, and practical recommendations. It is not vague and directly answers the weather task. Thus, the score should be: true.",
+      "success": null,
+      "comment": "The final answer provides a concise 3-day weather plan for Moscow with specific dates (June 5, 6, 7), temperature ranges, precipitation/wind details (no rain, light winds), and practical advice (light jacket, no umbrella, outdoor activities). It meets all reference criteria: dates, weather evidence, and recommendations. There are no contradictions or vagueness. Thus, the score should be: true.",
+      "threshold": null,
+      "raw_key": "blackbox_quality",
       "assessment": "Works after Cloud.ru JSON adapter; compact API for custom rubrics."
     },
     {
@@ -58,27 +65,35 @@
       "library": "deepeval",
       "result_key": "trajectory_g_eval",
       "score": 1.0,
-      "comment": "The actual output follows the expected golden path exactly: it calls geocode_location then get_weather_forecast, gathering evidence before the final answer. Every claim in the final answer (dates, conditions, temperatures, precipitation, wind speeds) is directly supported by the forecast observations, with no unsupported claims or missing required tools.",
+      "success": true,
+      "comment": "The Actual Output follows the expected golden path exactly: it first geocodes 'Moscow, Russia' and then fetches the 3-day weather forecast using the obtained coordinates. The final answer is fully grounded in the forecast observations, with every claim (dates, temperatures, conditions, precipitation, wind) directly supported by the tool call results. No required tools are missing, no extra tools are used, and the order is correct.",
+      "threshold": 0.5,
+      "raw_key": null,
       "supporting_check": {
         "score": 1.0,
         "success": true,
-        "reason": "[\n\t Tool Calling Reason: Exact match: expected ['geocode_location', 'get_weather_forecast'], called ['geocode_location', 'get_weather_forecast']. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
-        "threshold": 1.0
+        "comment": "[\n\t Tool Calling Reason: Exact match: expected ['geocode_location', 'get_weather_forecast'], called ['geocode_location', 'get_weather_forecast']. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+        "threshold": 1.0,
+        "raw_key": null
       },
-      "assessment": "Works, but requires composing a GEval over serialized trajectory plus ToolCorrectness support."
+      "assessment": "Works, but requires composing GEval over serialized trajectory plus ToolCorrectness support."
     },
     {
       "variant": "deepeval_blackbox_llm_as_judge",
       "library": "deepeval",
       "result_key": "blackbox_g_eval",
       "score": 1.0,
-      "comment": "The response directly addresses the weather plan request with specific forecast details (dates, temperatures, wind, no rain) and includes actionable recommendations (outdoor activities, light jacket). It is concise, consistent, and fully meets all evaluation steps.",
+      "success": true,
+      "comment": "The response directly addresses the weather plan request with specific dates, temperature ranges, precipitation, and wind details. It provides actionable advice (light jacket, no umbrella) based on the forecast, and is concise and consistent with the expected output.",
+      "threshold": 0.5,
+      "raw_key": null,
       "assessment": "Works cleanly through GEval and custom Cloud.ru judge model."
     }
   ],
   "selection": {
     "recommended_base_path": "DeepEval",
     "recommended_companion": "OpenEvals for native golden/reference trajectory cases",
-    "reason": "DeepEval wins community, scenario breadth, and tracing/OTel story; OpenEvals wins native golden-path trajectory ergonomics."
+    "tracing_assessment_mode": "doc_based_not_live_otel_export",
+    "reason": "DeepEval wins community, scenario breadth, and the documented tracing/OTel story; OpenEvals wins native golden-path trajectory ergonomics. Live OTEL export was not tested in this R&D pass."
   }
 }

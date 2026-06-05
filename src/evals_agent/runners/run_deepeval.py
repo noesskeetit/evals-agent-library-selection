@@ -17,6 +17,7 @@ from evals_agent.runners.common import (
     base_payload,
     blackbox_rubric_for,
     expected_blackbox_answer_for,
+    expected_tool_names_for,
     expected_trajectory_text_for,
     final_answer_text,
     missing_live_judge_reason,
@@ -85,16 +86,62 @@ def _tool_calls(run: AgentRun) -> list[ToolCall]:
     ]
 
 
+def _expected_tool_calls(run: AgentRun) -> list[ToolCall]:
+    expected: list[ToolCall] = []
+    for index, tool_name in enumerate(expected_tool_names_for(run)):
+        kwargs: dict = {"name": tool_name}
+        if index < len(run.trace) and run.trace[index].tool_name == tool_name:
+            step = run.trace[index]
+            kwargs["input_parameters"] = step.arguments
+            kwargs["output"] = step.observation
+        expected.append(ToolCall(**kwargs))
+    return expected
+
+
+def _tool_call_payload(tool_call: ToolCall) -> dict:
+    return {
+        "name": tool_call.name,
+        "input_parameters": tool_call.input_parameters,
+        "output": tool_call.output,
+    }
+
+
 def _test_case(run: AgentRun) -> LLMTestCase:
-    tools = _tool_calls(run)
     return LLMTestCase(
         input=run.input,
         actual_output=final_answer_text(run),
         expected_output=expected_blackbox_answer_for(run),
-        tools_called=tools,
-        expected_tools=tools,
+        tools_called=_tool_calls(run),
+        expected_tools=_expected_tool_calls(run),
         metadata={"fixture": "repo_selection_v1"},
     )
+
+
+def _eval_inputs(run: AgentRun, test_case: LLMTestCase) -> dict:
+    trajectory_case = build_trajectory_test_case(run)
+    return {
+        "blackbox_g_eval": {
+            "input": test_case.input,
+            "actual_output": test_case.actual_output,
+            "expected_output": test_case.expected_output,
+            "criteria": blackbox_rubric_for(run).strip(),
+            "evaluation_params": ["INPUT", "ACTUAL_OUTPUT", "EXPECTED_OUTPUT"],
+        },
+        "tool_correctness": {
+            "tools_called": [_tool_call_payload(tool) for tool in test_case.tools_called or []],
+            "expected_tools": [_tool_call_payload(tool) for tool in test_case.expected_tools or []],
+            "threshold": 1.0,
+            "should_exact_match": True,
+            "should_consider_ordering": True,
+        },
+        "trajectory_g_eval": {
+            "input": trajectory_case.input,
+            "actual_output": trajectory_case.actual_output,
+            "expected_output": trajectory_case.expected_output,
+            "criteria": TRAJECTORY_RUBRIC.strip(),
+            "evaluation_params": ["INPUT", "ACTUAL_OUTPUT", "EXPECTED_OUTPUT"],
+        },
+    }
 
 
 def _metric_payload(metric, score: float) -> dict:
@@ -135,6 +182,7 @@ def run(dry_run: bool, task: str, agent: str = "fixture") -> dict:
     payload["package_version"] = md.version("deepeval")
 
     test_case = _test_case(agent_run)
+    payload["eval_inputs"] = _eval_inputs(agent_run, test_case)
     tool_metric = ToolCorrectnessMetric(
         threshold=1.0,
         model=NoopJudgeModel(),

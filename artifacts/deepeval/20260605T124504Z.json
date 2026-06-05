@@ -1,0 +1,263 @@
+{
+  "library": "deepeval",
+  "mode": "live_or_skip",
+  "captured_at": "2026-06-05T12:43:57.294496+00:00",
+  "judge": {
+    "provider": "cloudru_fm",
+    "base_url": "https://foundation-models.api.cloud.ru/v1",
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "max_tokens": 50000,
+    "reasoning_effort": "high",
+    "cloudru_host_in_no_proxy": true
+  },
+  "agent_run": {
+    "input": "Give me a short weather plan for Moscow, Russia for the next 3 days.",
+    "trace": [
+      {
+        "tool_name": "geocode_location",
+        "arguments": {
+          "location": "Moscow, Russia"
+        },
+        "observation": {
+          "status": "ok",
+          "name": "Moscow",
+          "country": "Russia",
+          "latitude": 55.75204,
+          "longitude": 37.61781,
+          "timezone": "Europe/Moscow",
+          "source": "open-meteo-geocoding"
+        }
+      },
+      {
+        "tool_name": "get_weather_forecast",
+        "arguments": {
+          "latitude": 55.75204,
+          "longitude": 37.61781,
+          "forecast_days": 3
+        },
+        "observation": {
+          "status": "ok",
+          "latitude": 55.75204,
+          "longitude": 37.61781,
+          "timezone": "Europe/Moscow",
+          "forecast": [
+            {
+              "date": "2026-06-05",
+              "weather_code": 3,
+              "condition": "partly_cloudy",
+              "temperature_max_c": 23.9,
+              "temperature_min_c": 12.4,
+              "precipitation_mm": 0.0,
+              "wind_speed_max_kmh": 6.4
+            },
+            {
+              "date": "2026-06-06",
+              "weather_code": 1,
+              "condition": "partly_cloudy",
+              "temperature_max_c": 24.1,
+              "temperature_min_c": 12.0,
+              "precipitation_mm": 0.0,
+              "wind_speed_max_kmh": 7.2
+            },
+            {
+              "date": "2026-06-07",
+              "weather_code": 3,
+              "condition": "partly_cloudy",
+              "temperature_max_c": 25.9,
+              "temperature_min_c": 13.2,
+              "precipitation_mm": 0.0,
+              "wind_speed_max_kmh": 5.4
+            }
+          ],
+          "source": "open-meteo-forecast"
+        }
+      }
+    ],
+    "final_answer": {
+      "recommended_repo": "weather_plan",
+      "rationale": " **Moscow 3-Day Weather Plan**\n\n- **June 5**: Partly cloudy, high 23.9°C, low 12.4°C, no precipitation, light wind up to 6.4 km/h.\n- **June 6**: Partly cloudy, high 24.1°C, low 12.0°C, no precipitation, light wind up to 7.2 km/h.\n- **June 7**: Partly cloudy, high 25.9°C, low 13.2°C, no precipitation, light wind up to 5.4 km/h.\n\n**Plan**: Dry and stable conditions throughout. Mornings are cool (12–13°C), so bring a light jacket. Afternoons warm to the mid-20s—comfortable for outdoor activities. No rain expected; umbrella not needed. Winds are calm.",
+      "evidence": [
+        "Geocoded Moscow, Russia to 55.75204, 37.61781.",
+        "Fetched 3 daily forecast rows from Open-Meteo."
+      ]
+    },
+    "metadata": {
+      "fixture": "weather_agent_v1",
+      "agent_type": "weather_llm",
+      "model": "moonshotai/Kimi-K2.6",
+      "answer_text": " **Moscow 3-Day Weather Plan**\n\n- **June 5**: Partly cloudy, high 23.9°C, low 12.4°C, no precipitation, light wind up to 6.4 km/h.\n- **June 6**: Partly cloudy, high 24.1°C, low 12.0°C, no precipitation, light wind up to 7.2 km/h.\n- **June 7**: Partly cloudy, high 25.9°C, low 13.2°C, no precipitation, light wind up to 5.4 km/h.\n\n**Plan**: Dry and stable conditions throughout. Mornings are cool (12–13°C), so bring a light jacket. Afternoons warm to the mid-20s—comfortable for outdoor activities. No rain expected; umbrella not needed. Winds are calm."
+    }
+  },
+  "results": {
+    "tool_correctness": {
+      "score": 1.0,
+      "success": true,
+      "reason": "[\n\t Tool Calling Reason: Exact match: expected ['geocode_location', 'get_weather_forecast'], called ['geocode_location', 'get_weather_forecast']. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+      "threshold": 1.0
+    },
+    "blackbox_g_eval": {
+      "score": 1.0,
+      "success": true,
+      "reason": "The response directly addresses the weather plan request with specific dates, temperature ranges, precipitation, and wind details. It provides actionable advice (light jacket, no umbrella) based on the forecast, and is concise and consistent with the expected output.",
+      "threshold": 0.5
+    },
+    "trajectory_g_eval": {
+      "score": 1.0,
+      "success": true,
+      "reason": "The Actual Output follows the expected golden path exactly: it first geocodes 'Moscow, Russia' and then fetches the 3-day weather forecast using the obtained coordinates. The final answer is fully grounded in the forecast observations, with every claim (dates, temperatures, conditions, precipitation, wind) directly supported by the tool call results. No required tools are missing, no extra tools are used, and the order is correct.",
+      "threshold": 0.5
+    }
+  },
+  "package_version": "4.0.5",
+  "eval_inputs": {
+    "blackbox_g_eval": {
+      "input": "Give me a short weather plan for Moscow, Russia for the next 3 days.",
+      "actual_output": " **Moscow 3-Day Weather Plan**\n\n- **June 5**: Partly cloudy, high 23.9°C, low 12.4°C, no precipitation, light wind up to 6.4 km/h.\n- **June 6**: Partly cloudy, high 24.1°C, low 12.0°C, no precipitation, light wind up to 7.2 km/h.\n- **June 7**: Partly cloudy, high 25.9°C, low 13.2°C, no precipitation, light wind up to 5.4 km/h.\n\n**Plan**: Dry and stable conditions throughout. Mornings are cool (12–13°C), so bring a light jacket. Afternoons warm to the mid-20s—comfortable for outdoor activities. No rain expected; umbrella not needed. Winds are calm.",
+      "expected_output": "The answer should provide a concise weather plan grounded in the forecast returned by tools, mention dates and weather evidence, and include practical advice.",
+      "criteria": "Score whether the final answer gives a useful weather plan in blackbox mode.\nJudge only the user input, final answer, and reference expectation; do not require\nraw tool observations to be present. The answer should mention forecast dates,\ntemperature, precipitation or wind evidence, and practical recommendations. Fail\nanswers that are vague, do not answer the weather task, or contain obvious\nunsupported contradictions.",
+      "evaluation_params": [
+        "INPUT",
+        "ACTUAL_OUTPUT",
+        "EXPECTED_OUTPUT"
+      ]
+    },
+    "tool_correctness": {
+      "tools_called": [
+        {
+          "name": "geocode_location",
+          "input_parameters": {
+            "location": "Moscow, Russia"
+          },
+          "output": {
+            "status": "ok",
+            "name": "Moscow",
+            "country": "Russia",
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "timezone": "Europe/Moscow",
+            "source": "open-meteo-geocoding"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "input_parameters": {
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "forecast_days": 3
+          },
+          "output": {
+            "status": "ok",
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "timezone": "Europe/Moscow",
+            "forecast": [
+              {
+                "date": "2026-06-05",
+                "weather_code": 3,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 23.9,
+                "temperature_min_c": 12.4,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 6.4
+              },
+              {
+                "date": "2026-06-06",
+                "weather_code": 1,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 24.1,
+                "temperature_min_c": 12.0,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 7.2
+              },
+              {
+                "date": "2026-06-07",
+                "weather_code": 3,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 25.9,
+                "temperature_min_c": 13.2,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 5.4
+              }
+            ],
+            "source": "open-meteo-forecast"
+          }
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "geocode_location",
+          "input_parameters": {
+            "location": "Moscow, Russia"
+          },
+          "output": {
+            "status": "ok",
+            "name": "Moscow",
+            "country": "Russia",
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "timezone": "Europe/Moscow",
+            "source": "open-meteo-geocoding"
+          }
+        },
+        {
+          "name": "get_weather_forecast",
+          "input_parameters": {
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "forecast_days": 3
+          },
+          "output": {
+            "status": "ok",
+            "latitude": 55.75204,
+            "longitude": 37.61781,
+            "timezone": "Europe/Moscow",
+            "forecast": [
+              {
+                "date": "2026-06-05",
+                "weather_code": 3,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 23.9,
+                "temperature_min_c": 12.4,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 6.4
+              },
+              {
+                "date": "2026-06-06",
+                "weather_code": 1,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 24.1,
+                "temperature_min_c": 12.0,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 7.2
+              },
+              {
+                "date": "2026-06-07",
+                "weather_code": 3,
+                "condition": "partly_cloudy",
+                "temperature_max_c": 25.9,
+                "temperature_min_c": 13.2,
+                "precipitation_mm": 0.0,
+                "wind_speed_max_kmh": 5.4
+              }
+            ],
+            "source": "open-meteo-forecast"
+          }
+        }
+      ],
+      "threshold": 1.0,
+      "should_exact_match": true,
+      "should_consider_ordering": true
+    },
+    "trajectory_g_eval": {
+      "input": "Give me a short weather plan for Moscow, Russia for the next 3 days.",
+      "actual_output": "Actual trajectory:\n1. geocode_location args={\"location\": \"Moscow, Russia\"} observation={\"country\": \"Russia\", \"latitude\": 55.75204, \"longitude\": 37.61781, \"name\": \"Moscow\", \"source\": \"open-meteo-geocoding\", \"status\": \"ok\", \"timezone\": \"Europe/Moscow\"}\n2. get_weather_forecast args={\"forecast_days\": 3, \"latitude\": 55.75204, \"longitude\": 37.61781} observation={\"forecast\": [{\"condition\": \"partly_cloudy\", \"date\": \"2026-06-05\", \"precipitation_mm\": 0.0, \"temperature_max_c\": 23.9, \"temperature_min_c\": 12.4, \"weather_code\": 3, \"wind_speed_max_kmh\": 6.4}, {\"condition\": \"partly_cloudy\", \"date\": \"2026-06-06\", \"precipitation_mm\": 0.0, \"temperature_max_c\": 24.1, \"temperature_min_c\": 12.0, \"weather_code\": 1, \"wind_speed_max_kmh\": 7.2}, {\"condition\": \"partly_cloudy\", \"date\": \"2026-06-07\", \"precipitation_mm\": 0.0, \"temperature_max_c\": 25.9, \"temperature_min_c\": 13.2, \"weather_code\": 3, \"wind_speed_max_kmh\": 5.4}], \"latitude\": 55.75204, \"longitude\": 37.61781, \"source\": \"open-meteo-forecast\", \"status\": \"ok\", \"timezone\": \"Europe/Moscow\"}\n\nFinal answer:\n **Moscow 3-Day Weather Plan**\n\n- **June 5**: Partly cloudy, high 23.9°C, low 12.4°C, no precipitation, light wind up to 6.4 km/h.\n- **June 6**: Partly cloudy, high 24.1°C, low 12.0°C, no precipitation, light wind up to 7.2 km/h.\n- **June 7**: Partly cloudy, high 25.9°C, low 13.2°C, no precipitation, light wind up to 5.4 km/h.\n\n**Plan**: Dry and stable conditions throughout. Mornings are cool (12–13°C), so bring a light jacket. Afternoons warm to the mid-20s—comfortable for outdoor activities. No rain expected; umbrella not needed. Winds are calm.",
+      "expected_output": "Expected golden path: geocode_location -> get_weather_forecast. The agent should geocode the requested location before fetching the weather forecast and should ground the final answer in forecast observations.",
+      "criteria": "Score whether the actual agent trajectory follows the expected golden path.\nThe judge should consider tool order, missing or extra tool calls, whether the\nagent gathered evidence before answering, and whether the final answer is grounded\nin tool observations. Return a low score for skipped required tools or unsupported\nclaims even if the final answer sounds plausible.",
+      "evaluation_params": [
+        "INPUT",
+        "ACTUAL_OUTPUT",
+        "EXPECTED_OUTPUT"
+      ]
+    }
+  }
+}

@@ -5,7 +5,7 @@ import sys
 
 from evals_agent.runners.judge_config import JudgeConfig
 from evals_agent.runners import run_openevals
-from evals_agent.runners.run_deepeval import build_trajectory_test_case
+from evals_agent.runners.run_deepeval import _test_case, build_trajectory_test_case
 from evals_agent.runners.run_openevals import OpenEvalsJudgeClient
 
 
@@ -62,6 +62,19 @@ def test_deepeval_trajectory_test_case_contains_actual_and_expected_trace():
     assert "search_repos" in test_case.actual_output
 
 
+def test_deepeval_tool_correctness_uses_independent_expected_tools():
+    from evals_agent.agent import run_agent
+    from evals_agent.runners.common import expected_tool_names_for
+
+    run = run_agent("Need eval library")
+    test_case = _test_case(run)
+
+    assert test_case.expected_tools is not test_case.tools_called
+    assert [tool.name for tool in test_case.expected_tools] == expected_tool_names_for(run)
+    for actual, expected in zip(test_case.tools_called, test_case.expected_tools):
+        assert actual is not expected
+
+
 def test_weather_runner_uses_agent_input_in_payload(monkeypatch):
     from evals_agent.llm_weather_agent import DEFAULT_WEATHER_TASK
     from evals_agent.trace_schema import AgentRun, FinalAnswer
@@ -109,6 +122,7 @@ def test_openevals_dry_run_writes_artifact(tmp_path):
 
     assert payload["library"] == "openevals"
     assert payload["mode"] == "dry_run"
+    assert payload["eval_inputs"]["blackbox_llm_as_judge"]["reference_outputs"]
     assert payload["results"]["trajectory_match"]["score"] is True
 
 
@@ -117,4 +131,5 @@ def test_deepeval_dry_run_writes_artifact(tmp_path):
 
     assert payload["library"] == "deepeval"
     assert payload["mode"] == "dry_run"
+    assert payload["eval_inputs"]["tool_correctness"]["expected_tools"]
     assert payload["results"]["tool_correctness"]["success"] is True
