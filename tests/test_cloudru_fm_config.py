@@ -25,7 +25,7 @@ def test_cloudru_config_uses_fm_api_key_alias_and_reasoning_defaults(monkeypatch
     assert config.api_key == "secret-value"
     assert config.max_tokens == CLOUDRU_FM_DEFAULT_MAX_TOKENS
     assert config.reasoning_effort == CLOUDRU_FM_DEFAULT_REASONING_EFFORT
-    assert config.redacted_dict()["api_key"] == "set"
+    assert "api_key" not in config.redacted_dict()
     assert config.missing_reason() is None
 
 

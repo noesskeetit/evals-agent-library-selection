@@ -122,7 +122,6 @@ class JudgeConfig:
     def redacted_dict(self) -> dict[str, object]:
         return {
             "provider": self.provider,
-            "api_key": "set" if self.api_key else "missing",
             "base_url": self.base_url,
             "model": self.model,
             "max_tokens": self.max_tokens,

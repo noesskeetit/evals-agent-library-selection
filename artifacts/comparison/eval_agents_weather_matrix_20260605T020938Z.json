@@ -16,7 +16,6 @@
   },
   "judge": {
     "provider": "cloudru_fm",
-    "api_key": "set",
     "base_url": "https://foundation-models.api.cloud.ru/v1",
     "model": "deepseek-ai/DeepSeek-V4-Pro",
     "max_tokens": 50000,

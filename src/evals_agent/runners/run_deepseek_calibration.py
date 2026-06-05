@@ -11,7 +11,7 @@ from evals_agent.calibration import (
     build_calibration_prompt,
     score_calibration_results,
 )
-from evals_agent.runners.common import env_status, missing_live_judge_reason, utc_now, write_artifact
+from evals_agent.runners.common import missing_live_judge_reason, utc_now, write_artifact
 from evals_agent.runners.judge_config import JudgeConfig, resolve_judge_config
 from evals_agent.trace_schema import agent_run_to_dict
 
@@ -70,7 +70,6 @@ def run(dry_run: bool) -> dict[str, Any]:
         "library": "deepseek_judge_calibration",
         "mode": "dry_run" if dry_run else "live_or_skip",
         "captured_at": utc_now(),
-        "env": env_status(),
         "judge": config.redacted_dict(),
         "cases": [],
         "summary": {},
