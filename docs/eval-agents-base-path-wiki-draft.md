@@ -158,6 +158,525 @@ G-Eval = метод LLM-as-judge в DeepEval
 - **DeepEval ToolCorrectness** получил нормализованные `ToolCall[]`.
 - **DeepEval Golden Path через GEval** получил serialized trace как текст, включая tool args, observations и final answer.
 
+## Как это выглядит кодом: общий слой платформы
+
+Чтобы не привязать платформу к формату одной библиотеки, полезно мыслить так:
+
+```text
+agent run
+  -> neutral EvalCase
+  -> openevals adapter
+  -> deepeval adapter
+  -> normalized result JSON
+```
+
+То есть агент один раз выполняет задачу, а дальше его результат раскладывается в разные eval-форматы.
+
+### 1. Что возвращает агент
+
+В нашем тесте агент возвращает не только текст, а run с trace:
+
+```python
+@dataclass(frozen=True)
+class TraceStep:
+    tool_name: str
+    arguments: dict[str, Any]
+    observation: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class AgentRun:
+    input: str
+    trace: list[TraceStep]
+    final_answer: FinalAnswer
+    metadata: dict[str, Any]
+```
+
+Для weather agent это примерно такой объект:
+
+```python
+agent_run = AgentRun(
+    input="Give me a short weather plan for Moscow, Russia for the next 3 days.",
+    trace=[
+        TraceStep(
+            tool_name="geocode_location",
+            arguments={"location": "Moscow, Russia"},
+            observation={
+                "status": "ok",
+                "name": "Moscow",
+                "country": "Russia",
+                "latitude": 55.75204,
+                "longitude": 37.61781,
+                "timezone": "Europe/Moscow",
+            },
+        ),
+        TraceStep(
+            tool_name="get_weather_forecast",
+            arguments={
+                "latitude": 55.75204,
+                "longitude": 37.61781,
+                "forecast_days": 3,
+            },
+            observation={
+                "status": "ok",
+                "forecast": [
+                    {
+                        "date": "2026-06-05",
+                        "condition": "partly_cloudy",
+                        "temperature_max_c": 23.9,
+                        "temperature_min_c": 12.4,
+                        "precipitation_mm": 0.0,
+                    }
+                ],
+            },
+        ),
+    ],
+    final_answer=FinalAnswer(
+        recommended_repo="weather_plan",
+        rationale="Weather answer generated from Open-Meteo observations.",
+        evidence=[],
+    ),
+    metadata={
+        "agent_type": "weather_llm",
+        "model": "moonshotai/Kimi-K2.6",
+        "answer_text": "June 5: partly cloudy, 12-24 C, no rain...",
+    },
+)
+```
+
+Главная идея: **eval не должен парсить stdout агента**. Агент должен отдавать структурированный run: input, final answer, trace, metadata.
+
+### 2. Нейтральный EvalCase
+
+Внутри платформы я бы не хранил отдельно "OpenEvals case" и "DeepEval case". Лучше иметь один нейтральный объект:
+
+```python
+@dataclass(frozen=True)
+class EvalToolCall:
+    name: str
+    arguments: dict[str, Any]
+    observation: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class EvalCase:
+    input: str
+    actual_output: str
+    expected_output: str
+    rubric: str
+    actual_tools: list[EvalToolCall]
+    expected_tools: list[EvalToolCall]
+    metadata: dict[str, Any]
+```
+
+Для weather agent сборка выглядит так:
+
+```python
+def build_weather_eval_case(run: AgentRun) -> EvalCase:
+    actual_tools = [
+        EvalToolCall(
+            name=step.tool_name,
+            arguments=step.arguments,
+            observation=step.observation,
+        )
+        for step in run.trace
+    ]
+
+    expected_tools = [
+        EvalToolCall(name="geocode_location", arguments={"location": "Moscow, Russia"}),
+        EvalToolCall(
+            name="get_weather_forecast",
+            arguments={
+                "latitude": 55.75204,
+                "longitude": 37.61781,
+                "forecast_days": 3,
+            },
+        ),
+    ]
+
+    return EvalCase(
+        input=run.input,
+        actual_output=final_answer_text(run),
+        expected_output=(
+            "The answer should provide a concise weather plan grounded in the "
+            "forecast returned by tools, mention dates and weather evidence, "
+            "and include practical advice."
+        ),
+        rubric=(
+            "Judge only the user input, final answer, and reference expectation. "
+            "The answer should mention forecast dates, temperature, precipitation "
+            "or wind evidence, and practical recommendations."
+        ),
+        actual_tools=actual_tools,
+        expected_tools=expected_tools,
+        metadata={
+            "agent": "weather",
+            "model": run.metadata["model"],
+            "scenario": "weather_3_day_plan",
+        },
+    )
+```
+
+На этом уровне еще нет ни OpenEvals, ни DeepEval. Это просто внутренний контракт платформы.
+
+### 3. OpenEvals Blackbox adapter
+
+Blackbox для OpenEvals получает только input/output/reference/rubric:
+
+```python
+def run_openevals_blackbox(case: EvalCase, judge, model: str) -> dict:
+    evaluator = create_llm_as_judge(
+        prompt=(
+            case.rubric
+            + "\nInputs:\n{inputs}"
+            + "\nOutputs:\n{outputs}"
+            + "\nReference:\n{reference_outputs}"
+        ),
+        judge=judge,
+        model=model,
+        feedback_key="blackbox_quality",
+    )
+
+    raw_result = evaluator(
+        inputs=case.input,
+        outputs=case.actual_output,
+        reference_outputs=case.expected_output,
+    )
+
+    return normalize_eval_result(raw_result)
+```
+
+Что реально уходит в evaluator:
+
+```python
+{
+    "inputs": "Give me a short weather plan for Moscow...",
+    "outputs": "June 5: partly cloudy, 12-24 C, no rain...",
+    "reference_outputs": "The answer should provide a concise weather plan...",
+}
+```
+
+Что возвращается в JSON-артефакт:
+
+```json
+{
+  "key": "blackbox_quality",
+  "score": true,
+  "comment": "The final answer provides a concise 3-day weather plan...",
+  "metadata": null
+}
+```
+
+### 4. OpenEvals Golden Path adapter
+
+OpenEvals trajectory evaluator хочет OpenAI-style messages с `tool_calls`.
+
+Adapter из `EvalCase.actual_tools`:
+
+```python
+def to_openevals_tool_messages(tools: list[EvalToolCall], call_id_prefix: str) -> list[dict]:
+    messages = []
+    for index, tool in enumerate(tools):
+        messages.append(
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": f"{call_id_prefix}_{index}",
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "arguments": json.dumps(
+                                tool.arguments,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                            ),
+                        },
+                    }
+                ],
+            }
+        )
+    return messages
+```
+
+Сам eval:
+
+```python
+def run_openevals_golden(case: EvalCase, judge, model: str) -> dict:
+    outputs = to_openevals_tool_messages(case.actual_tools, "call")
+    reference_outputs = to_openevals_tool_messages(case.expected_tools, "ref_call")
+
+    deterministic_match = create_trajectory_match_evaluator(
+        trajectory_match_mode="strict",
+        tool_args_match_mode="ignore",
+    )
+
+    llm_judge = create_trajectory_llm_as_judge(
+        judge=judge,
+        model=model,
+    )
+
+    return {
+        "trajectory_match": normalize_eval_result(
+            deterministic_match(
+                outputs=outputs,
+                reference_outputs=reference_outputs,
+            )
+        ),
+        "trajectory_llm_as_judge": normalize_eval_result(
+            llm_judge(
+                outputs=outputs,
+                reference_outputs=reference_outputs,
+            )
+        ),
+    }
+```
+
+Что реально сравнивается:
+
+```python
+actual = [
+    {"tool": "geocode_location", "arguments": {"location": "Moscow, Russia"}},
+    {"tool": "get_weather_forecast", "arguments": {"latitude": 55.75204, "longitude": 37.61781}},
+]
+
+expected = [
+    {"tool": "geocode_location", "arguments": {"location": "Moscow, Russia"}},
+    {"tool": "get_weather_forecast", "arguments": {"latitude": 55.75204, "longitude": 37.61781}},
+]
+```
+
+Выход:
+
+```json
+{
+  "trajectory_match": {
+    "key": "trajectory_strict_match",
+    "score": true,
+    "comment": null
+  },
+  "trajectory_llm_as_judge": {
+    "key": "trajectory_accuracy",
+    "score": true,
+    "comment": "The actual trajectory is identical to the reference trajectory..."
+  }
+}
+```
+
+### 5. DeepEval Blackbox adapter
+
+DeepEval blackbox превращает тот же `EvalCase` в `LLMTestCase`:
+
+```python
+def run_deepeval_blackbox(case: EvalCase, judge_model) -> dict:
+    test_case = LLMTestCase(
+        input=case.input,
+        actual_output=case.actual_output,
+        expected_output=case.expected_output,
+    )
+
+    metric = GEval(
+        name="Blackbox Quality",
+        criteria=case.rubric,
+        evaluation_params=[
+            SingleTurnParams.INPUT,
+            SingleTurnParams.ACTUAL_OUTPUT,
+            SingleTurnParams.EXPECTED_OUTPUT,
+        ],
+        model=judge_model,
+        threshold=0.5,
+        async_mode=False,
+    )
+
+    score = metric.measure(
+        test_case,
+        _show_indicator=False,
+        _log_metric_to_confident=False,
+    )
+
+    return {
+        "score": score,
+        "success": bool(metric.success),
+        "reason": metric.reason,
+        "threshold": metric.threshold,
+    }
+```
+
+Что уходит в DeepEval:
+
+```python
+LLMTestCase(
+    input="Give me a short weather plan for Moscow...",
+    actual_output="June 5: partly cloudy, 12-24 C, no rain...",
+    expected_output="The answer should provide a concise weather plan...",
+)
+```
+
+Выход:
+
+```json
+{
+  "score": 1.0,
+  "success": true,
+  "reason": "The response directly addresses the weather plan request...",
+  "threshold": 0.5
+}
+```
+
+### 6. DeepEval Golden Path adapter
+
+Для deterministic tool correctness нужен `ToolCall[]`:
+
+```python
+def to_deepeval_tool_call(tool: EvalToolCall) -> ToolCall:
+    return ToolCall(
+        name=tool.name,
+        input_parameters=tool.arguments,
+        output=tool.observation,
+    )
+
+
+def run_deepeval_tool_correctness(case: EvalCase) -> dict:
+    test_case = LLMTestCase(
+        input=case.input,
+        actual_output=case.actual_output,
+        expected_output=case.expected_output,
+        tools_called=[to_deepeval_tool_call(tool) for tool in case.actual_tools],
+        expected_tools=[to_deepeval_tool_call(tool) for tool in case.expected_tools],
+    )
+
+    metric = ToolCorrectnessMetric(
+        threshold=1.0,
+        model=NoopJudgeModel(),
+        async_mode=False,
+        include_reason=True,
+        should_exact_match=True,
+        should_consider_ordering=True,
+    )
+
+    score = metric.measure(
+        test_case,
+        _show_indicator=False,
+        _log_metric_to_confident=False,
+    )
+
+    return {
+        "score": score,
+        "success": bool(metric.success),
+        "reason": metric.reason,
+        "threshold": metric.threshold,
+    }
+```
+
+Для LLM-as-judge по Golden Path в DeepEval trace надо сериализовать:
+
+```python
+def serialize_trace(case: EvalCase) -> str:
+    lines = []
+    for index, tool in enumerate(case.actual_tools, start=1):
+        lines.append(
+            f"{index}. {tool.name} "
+            f"args={json.dumps(tool.arguments, ensure_ascii=False, sort_keys=True)} "
+            f"observation={json.dumps(tool.observation, ensure_ascii=False, sort_keys=True)}"
+        )
+    return "\n".join(lines)
+
+
+def run_deepeval_golden_llm(case: EvalCase, judge_model) -> dict:
+    trajectory_case = LLMTestCase(
+        input=case.input,
+        actual_output=(
+            "Actual trajectory:\n"
+            f"{serialize_trace(case)}\n\n"
+            "Final answer:\n"
+            f"{case.actual_output}"
+        ),
+        expected_output=(
+            "Expected golden path: geocode_location -> get_weather_forecast. "
+            "The agent should geocode the requested location before fetching "
+            "the weather forecast and should ground the final answer in forecast observations."
+        ),
+    )
+
+    metric = GEval(
+        name="Golden Path Trajectory",
+        criteria=(
+            "Score whether the actual agent trajectory follows the expected golden path. "
+            "Consider tool order, missing or extra tool calls, evidence gathering, "
+            "and whether the final answer is grounded in tool observations."
+        ),
+        evaluation_params=[
+            SingleTurnParams.INPUT,
+            SingleTurnParams.ACTUAL_OUTPUT,
+            SingleTurnParams.EXPECTED_OUTPUT,
+        ],
+        model=judge_model,
+        threshold=0.5,
+        async_mode=False,
+    )
+
+    score = metric.measure(
+        trajectory_case,
+        _show_indicator=False,
+        _log_metric_to_confident=False,
+    )
+
+    return {
+        "score": score,
+        "success": bool(metric.success),
+        "reason": metric.reason,
+        "threshold": metric.threshold,
+    }
+```
+
+### 7. Единый запуск 2x2
+
+В итоге вся обвязка выглядит так:
+
+```python
+def run_eval_matrix(task: str) -> dict:
+    agent_run = run_weather_agent(task)
+    case = build_weather_eval_case(agent_run)
+
+    judge_config = resolve_judge_config()
+    openevals_judge = build_openevals_judge(judge_config)
+    deepeval_judge = CloudRuFMJudgeModel(judge_config)
+
+    return {
+        "openevals_golden_path_llm_as_judge": run_openevals_golden(
+            case=case,
+            judge=openevals_judge,
+            model=judge_config.model,
+        ),
+        "openevals_blackbox_llm_as_judge": run_openevals_blackbox(
+            case=case,
+            judge=openevals_judge,
+            model=judge_config.model,
+        ),
+        "deepeval_golden_path_llm_as_judge": {
+            "tool_correctness": run_deepeval_tool_correctness(case),
+            "trajectory_g_eval": run_deepeval_golden_llm(
+                case=case,
+                judge_model=deepeval_judge,
+            ),
+        },
+        "deepeval_blackbox_llm_as_judge": run_deepeval_blackbox(
+            case=case,
+            judge_model=deepeval_judge,
+        ),
+    }
+```
+
+Ключевой практический вывод из кода:
+
+```text
+Blackbox adapter = берет input + final answer + expected answer + rubric.
+Golden adapter = берет actual trace + expected trace.
+OpenEvals Golden = trace уже native input.
+DeepEval Golden = trace надо превратить в ToolCall[] или serialized text.
+```
+
 ## Blackbox: что на вход и выход
 
 Blackbox оценивает внешний контракт:
