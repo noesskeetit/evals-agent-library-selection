@@ -297,9 +297,6 @@ EvalCase(
 ## Где что лежит
 
 - Репозиторий: `https://github.com/noesskeetit/evals-agent-library-selection`
-- Короткая статья: `docs/eval-agents-base-path-teamlead.md`
-- Confluence-копия: `docs/eval-agents-base-path-teamlead-confluence.wiki`
-- Полная техническая версия: `docs/eval-agents-base-path-wiki-draft.md`
 - Основная матрица: `artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json`
 - Negative cases: `artifacts/negative/20260610T072334Z.json`
 - Runners: `src/evals_agent/runners/`
