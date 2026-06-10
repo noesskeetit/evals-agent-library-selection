@@ -1,17 +1,17 @@
 # [Eval Agents] Короткая версия для тимлида
 
-Дата среза: 2026-06-10.  
+Дата среза: 2026-06-10.
 Полная версия с деталями: `docs/eval-agents-base-path-wiki-draft.md`.
 
 ## Решение
 
-**Рекомендация: DeepEval как base path платформы.**  
-**OpenEvals оставить как companion adapter для Golden Path / reference trajectory.**
+**Рекомендация: выбираем DeepEval как единственный обязательный base path платформы.**
+**OpenEvals не нужен как обязательная зависимость; его можно держать в виду как optional adapter для более нативного Golden Path API.**
 
 Почему так:
 
 - DeepEval выигрывает как платформа: community, набор метрик, tracing/eval harness, multi-turn/RAG/agentic/MCP сценарии.
-- OpenEvals выигрывает в одном узком месте: Golden Path trajectory API у него проще и нативнее.
+- OpenEvals выигрывает в одном узком месте: Golden Path trajectory API у него проще и нативнее, но это не критично.
 - Blackbox и Golden Path нужны оба: negative case показал, что красивый выдуманный ответ проходит blackbox, но падает на Golden Path.
 
 Практическая схема:
@@ -19,7 +19,7 @@
 ```text
 Внутренний контракт: EvalCase
 Base engine: DeepEval
-Companion: OpenEvals для native trajectory/reference checks
+Optional: OpenEvals только если DeepEval adapter для trajectory станет дорогим в поддержке
 Judge в тестах: deepseek-ai/DeepSeek-V4-Pro через Cloud.ru FM API
 Agent under test: weather agent на moonshotai/Kimi-K2.6
 ```
@@ -297,7 +297,7 @@ result = evaluator(
 )
 ```
 
-Вход: задача, финальный ответ, reference/rubric.  
+Вход: задача, финальный ответ, reference/rubric.
 Выход: `{key, score, comment, metadata}`.
 
 ### OpenEvals Golden Path
@@ -317,7 +317,7 @@ deterministic_result = match(outputs=outputs, reference_outputs=reference_output
 llm_result = judge_eval(outputs=outputs, reference_outputs=reference_outputs)
 ```
 
-Вход: OpenAI-style messages с `tool_calls`.  
+Вход: OpenAI-style messages с `tool_calls`.
 Выход: deterministic match + LLM comment по trajectory.
 
 ### DeepEval Blackbox
@@ -344,7 +344,7 @@ metric = GEval(
 score = metric.measure(test_case)
 ```
 
-Вход: `LLMTestCase`.  
+Вход: `LLMTestCase`.
 Выход: `{score, success, reason, threshold}`.
 
 ### DeepEval Golden Path
@@ -389,7 +389,7 @@ trajectory_metric = GEval(
 )
 ```
 
-Вход: `ToolCall[]` или serialized trace.  
+Вход: `ToolCall[]` или serialized trace.
 Выход: `{score, success, reason, threshold}`.
 
 ## Ответы на спорные вопросы
@@ -398,19 +398,19 @@ trajectory_metric = GEval(
 
 Да. Если нужно минимизировать dependencies, можно выбрать **только DeepEval**. Он закрывает Blackbox, Golden Path через `ToolCorrectnessMetric`, Golden Path LLM-as-Judge через `GEval` над serialized trace и даёт более широкий tracing/eval harness.
 
-Минус: Golden Path будет менее native, понадобится свой adapter для trace serialization, expected path и unified output.
+Минус небольшой: Golden Path будет менее native, понадобится свой adapter для trace serialization, expected path и unified output. По нашим тестам это не blocker.
 
 ### Что предлагается в гибридном варианте?
 
-Не две платформы, а один контракт и два adapter-а:
+Гибридный вариант теперь не рекомендация по умолчанию, а fallback. Базово делаем один контракт и один обязательный adapter:
 
 ```text
 EvalCase
   -> DeepEval adapter: default/base path
-  -> OpenEvals adapter: native trajectory checks
+  -> OpenEvals adapter: optional, только если понадобится native trajectory API
 ```
 
-DeepEval отвечает за platform lifecycle и большинство сценариев. OpenEvals используется точечно там, где он проще: reference trajectory и trajectory LLM-as-judge.
+DeepEval отвечает за platform lifecycle и все обязательные сценарии. OpenEvals можно добавить точечно, если на практике окажется, что его native reference trajectory API экономит поддержку.
 
 ### Можно ли отказаться от OpenEvals Golden Path?
 
@@ -424,7 +424,7 @@ DeepEval отвечает за platform lifecycle и большинство сц
 4. зафиксировать rubric/evaluation steps;
 5. нормализовать output к формату платформы.
 
-Если это легко, зачем тогда OpenEvals Golden Path? Потому что OpenEvals уже даёт native trajectory API: меньше glue-кода, проще тесты, быстрее старт. Но если dependency budget жёсткий, OpenEvals можно убрать и жить на DeepEval-only.
+Если это легко, зачем тогда OpenEvals Golden Path? Только ради ergonomics: у OpenEvals native trajectory API, меньше glue-кода и чуть проще тесты. Но функционально это не критично: DeepEval уже поймал те же positive/negative кейсы, поэтому OpenEvals можно убрать и жить на DeepEval-only.
 
 ## Итог
 
@@ -435,9 +435,9 @@ DeepEval отвечает за platform lifecycle и большинство сц
 Итоговая рекомендация:
 
 ```text
-Production base path: DeepEval
-Companion: OpenEvals для Golden Path, пока платформа стабилизирует свой EvalCase
-Long-term: оставить OpenEvals только если native trajectory API реально экономит поддержку
+Production base path: DeepEval-only
+OpenEvals: optional, не обязательная зависимость
+Long-term: добавить OpenEvals только если native trajectory API реально экономит поддержку
 ```
 
 Минимальный platform contract:

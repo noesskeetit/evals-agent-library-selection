@@ -15,34 +15,36 @@
 
 ## Краткий вывод
 
-Рекомендация: **DeepEval как base path платформы**, **OpenEvals как companion runner для native Golden Path / reference trajectory**.
+Рекомендация: **DeepEval как единственный обязательный base path платформы**.
+
+OpenEvals не нужен как обязательная зависимость. Его стоит подсветить как библиотеку с более нативной ergonomics для Golden Path / reference trajectory, но функционально этот сценарий закрывается в DeepEval через `ToolCorrectnessMetric` и `GEval` над serialized trace.
 
 Почему так:
 
 - DeepEval выигрывает по community support: сильно больше stars/forks, активнее релизы, больше contributor surface.
 - DeepEval шире как eval platform: `GEval`, DAG/custom metrics, RAG, agentic metrics, multi-turn, MCP, tracing, component-level evals.
 - DeepEval ближе к tracing/eval harness: есть собственный tracing layer и Confident AI path. Перепроверка 2026-06-10 подтвердила это на уровне кода: в пакете `deepeval` физически лежит OTEL-слой (`deepeval/tracing/otel/` с `ConfidentSpanExporter`, понимающим `gen_ai.*` semconv-атрибуты) и готовые инструментаторы для langchain, llama_index, pydantic_ai, crewai, google_adk, strands, agentcore, openinference. В `openevals` упоминаний opentelemetry ноль — его OTEL-путь живёт целиком в LangSmith. Live OTEL export end-to-end по-прежнему не прогонялся (нужен отдельный spike).
-- OpenEvals удобнее именно для Golden Path trajectory: `create_trajectory_match_evaluator` и `create_trajectory_llm_as_judge` принимают agent trajectory как first-class input.
+- OpenEvals удобнее именно для Golden Path trajectory: `create_trajectory_match_evaluator` и `create_trajectory_llm_as_judge` принимают agent trajectory как first-class input. Это плюс по ergonomics, но не blocker для DeepEval-only выбора.
 
 Практический выбор:
 
 ```text
 Base path: DeepEval
-Companion runner: OpenEvals для native trajectory/reference checks
+OpenEvals: optional, не обязательная зависимость
 Default judge в тестах: deepseek-ai/DeepSeek-V4-Pro через Cloud.ru FM API
 Agent-under-test в live-прогоне: moonshotai/Kimi-K2.6
 ```
 
-Важно: это не значит, что OpenEvals плохой. Наоборот, для Golden Path он оказался самым прямым и понятным. Но как основа платформы DeepEval сильнее по сумме критериев из ТЗ.
+Важно: это не значит, что OpenEvals плохой. Для Golden Path он оказался самым прямым и понятным. Но в production-решении его ценность не перевешивает дополнительную обязательную зависимость: DeepEval закрывает те же positive/negative кейсы.
 
 ## Что требовалось по ТЗ
 
 На платформе должно быть два варианта оценки:
 
-1. **Golden Path with LLM as Judge**  
+1. **Golden Path with LLM as Judge**
    Оценка того, шел ли агент правильным путем: вызывал ли нужные tools, в правильном ли порядке, собрал ли evidence до ответа, не пропустил ли обязательный шаг. Целевой пример из ТЗ: OpenEvals `trajectory-llm-as-judge`.
 
-2. **Blackbox LLM as Judge**  
+2. **Blackbox LLM as Judge**
    Оценка только финального ответа: пользовательский input, actual answer, expected/reference expectation и rubric. Целевой пример из ТЗ: OpenEvals `llm-as-judge`.
 
 Нужно было оценить:
@@ -1162,7 +1164,7 @@ tool_calls являются first-class данными
 }
 ```
 
-Оценка удобства: **отлично для Golden Path**. Это самый прямой API среди двух библиотек для reference trajectory. Если платформе важен именно Golden Path как first-class сценарий, OpenEvals стоит держать рядом даже при выборе DeepEval как base path.
+Оценка удобства: **отлично для Golden Path**. Это самый прямой API среди двух библиотек для reference trajectory. Но это аргумент про ergonomics, а не про обязательную зависимость: DeepEval закрывает тот же функциональный сценарий через `ToolCorrectnessMetric` и `GEval`, поэтому OpenEvals можно добавить позже только при явной выгоде по поддержке.
 
 ## DeepEval Blackbox: формат входа и выхода
 
@@ -1553,8 +1555,8 @@ OpenEvals -> только evaluator-функции; trace-инфраструкт
 но live end-to-end OTEL export в этом R&D по-прежнему не прогонялся. Перед
 production-решением нужен отдельный spike: instrument sample agent, export OTEL
 traces, проверить linking trace/span/eval result и поведение при nested tool calls.
-Если компания уже выбирает LangSmith как trace backend, OpenEvals становится
-естественным companion.
+Если компания уже выбирает LangSmith как trace backend, OpenEvals можно рассмотреть
+как optional adapter, но это не меняет выбора base path.
 
 ## Итоговая оценка по критериям ТЗ
 
@@ -1570,8 +1572,8 @@ traces, проверить linking trace/span/eval result и поведение 
 Финальный выбор:
 
 ```text
-DeepEval wins as base path.
-OpenEvals should remain supported for native golden/reference trajectory evals.
+DeepEval-only as required base path.
+OpenEvals is optional for native golden/reference trajectory ergonomics.
 ```
 
 ## Рекомендованный platform contract
@@ -1599,18 +1601,9 @@ EvalCase:
     run_id: string
 ```
 
-Adapters:
+Required adapter:
 
 ```text
-OpenEvals blackbox:
-  EvalCase.input/output/expected/rubric
-  -> create_llm_as_judge(...)
-
-OpenEvals golden:
-  EvalCase.actual_trace.messages / expected_trace.messages
-  -> create_trajectory_match_evaluator(...)
-  -> create_trajectory_llm_as_judge(...)
-
 DeepEval blackbox:
   EvalCase.input/output/expected/rubric
   -> LLMTestCase(...)
@@ -1626,19 +1619,29 @@ DeepEval golden LLM-as-judge:
   -> GEval(...)
 ```
 
+Optional adapter, если ergonomics Golden Path станет важнее dependency budget:
+
+```text
+OpenEvals golden:
+  EvalCase.actual_trace.messages / expected_trace.messages
+  -> create_trajectory_match_evaluator(...)
+  -> create_trajectory_llm_as_judge(...)
+```
+
 Такой контракт позволяет:
 
 - хранить raw trace один раз;
-- запускать несколько eval-библиотек поверх одного case;
+- запускать DeepEval как основной eval engine поверх одного case;
+- добавить OpenEvals позже без миграции внутреннего контракта, если это реально понадобится;
 - не терять tool observations;
 - сравнивать deterministic и LLM-as-judge результаты;
-- не переписывать платформу, если later поменяется preferred eval engine.
+- не переписывать платформу, если позже появится причина добавить или заменить eval engine.
 
 ## Что улучшить дальше
 
-1. Расширить OpenEvals adapter до full transcript: добавить `user`, `tool` messages с observations и финальный `assistant` answer, а не только assistant `tool_calls`.
+1. Довести DeepEval-only adapter до production-формата: единый `EvalCase`, `ToolCall[]` для deterministic gate, serialized trace для `GEval`, нормализованный output.
 2. ~~Добавить negative test cases~~ - **сделано 2026-06-10** для двух главных вариантов (`skipped_forecast`, `no_tools`), см. раздел "Negative case: агент-симулянт". Остались непрогнанными варианты "неправильный порядок tools" и "лишний tool" - детерминированные matchers поймают их по построению (strict mode сравнивает последовательность), но live-подтверждение с LLM-судьёй не делалось.
-3. Прогнать multi-turn scenario: у DeepEval есть conversational metrics, у OpenEvals - симуляция пользователя (`run_multiturn_simulation`), интересно столкнуть их на одном диалоге.
+3. Прогнать multi-turn scenario на DeepEval conversational metrics; OpenEvals simulation можно проверить отдельно, но она не влияет на base-path выбор.
 4. Если платформа реально будет на OTEL, сделать отдельный spike:
    - export trace через OTEL (у DeepEval - `ConfidentSpanExporter`, у LangChain-стека - LangSmith OTEL ingestion);
    - завести один eval run в LangSmith;
