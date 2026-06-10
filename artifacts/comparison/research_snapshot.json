@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-06-05T12:26:28.820360+00:00",
+  "captured_at": "2026-06-10T07:19:51.994302+00:00",
   "sources": {
     "openevals_repo": "https://github.com/langchain-ai/openevals",
     "openevals_readme_raw": "https://raw.githubusercontent.com/langchain-ai/openevals/main/README.md",
@@ -13,14 +13,14 @@
   "libraries": {
     "openevals": {
       "github": {
-        "stars": 1068,
-        "forks": 97,
+        "stars": 1070,
+        "forks": 98,
         "watchers": 11,
-        "open_issues_and_prs": 10,
+        "open_issues_and_prs": 9,
         "default_branch": "main",
         "created_at": "2025-02-08T00:12:20Z",
-        "updated_at": "2026-06-03T23:49:59Z",
-        "pushed_at": "2026-06-03T23:48:00Z",
+        "updated_at": "2026-06-10T03:36:50Z",
+        "pushed_at": "2026-06-07T20:18:41Z",
         "license": "MIT",
         "latest_releases": [
           {
@@ -56,33 +56,33 @@
         ],
         "latest_commits": [
           {
-            "sha": "6ecf9b54e13e",
-            "date": "2026-05-19T21:53:36Z",
-            "message": "Merge pull request #194 from langchain-ai/dependabot/npm_and_yarn/js/npm_and_yarn-da0aa30ced\n\nchore(deps): Bump brace-expansion from 5.0.5 to 5.0.6 in /js in the npm_and_yarn group across 1 directory",
+            "sha": "0a1c456c581c",
+            "date": "2026-06-07T20:18:33Z",
+            "message": "Merge pull request #197 from langchain-ai/dependabot/npm_and_yarn/js/npm_and_yarn-3ac77625be\n\nchore(deps-dev): Bump vitest from 3.0.5 to 4.1.0 in /js in the npm_and_yarn group across 1 directory",
             "author_login": "jkennedyvz"
           },
           {
-            "sha": "542a9040e6fc",
-            "date": "2026-05-19T21:33:02Z",
-            "message": "chore(deps): update yarn.lock for brace-expansion 5.0.6\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+            "sha": "cc3361339ab9",
+            "date": "2026-06-07T20:18:27Z",
+            "message": "Merge pull request #196 from langchain-ai/dependabot/uv/python/uv-1c0655a644\n\nchore(deps): Bump aiohttp from 3.13.4 to 3.14.0 in /python in the uv group across 1 directory",
             "author_login": "jkennedyvz"
           },
           {
-            "sha": "7bf0d3b7a3aa",
-            "date": "2026-05-19T21:28:53Z",
-            "message": "Merge pull request #195 from langchain-ai/dependabot/uv/python/uv-d665ee01e3\n\nchore(deps): Bump idna from 3.10 to 3.15 in /python in the uv group across 1 directory",
-            "author_login": "jkennedyvz"
-          },
-          {
-            "sha": "215d2764c88d",
-            "date": "2026-05-19T20:06:47Z",
-            "message": "chore(deps): Bump idna in /python in the uv group across 1 directory\n\nBumps the uv group with 1 update in the /python directory: [idna](https://github.com/kjd/idna).\n\n\nUpdates `idna` from 3.10 to 3.15\n- [Release notes](https://github.com/kjd/idna/releases)\n- [Changelog](https://github.com/kjd/idna/blob/master/HISTORY.md)\n- [Commits](https://github.com/kjd/idna/compare/v3.10...v3.15)\n\n---\nupdated-dependencies:\n- dependency-name: idna\n  dependency-version: '3.15'\n  dependency-type: indirect\n  dependency-group: uv\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+            "sha": "43c528b69804",
+            "date": "2026-06-05T17:44:40Z",
+            "message": "chore(deps-dev): Bump vitest\n\nBumps the npm_and_yarn group with 1 update in the /js directory: [vitest](https://github.com/vitest-dev/vitest/tree/HEAD/packages/vitest).\n\n\nUpdates `vitest` from 3.0.5 to 4.1.0\n- [Release notes](https://github.com/vitest-dev/vitest/releases)\n- [Changelog](https://github.com/vitest-dev/vitest/blob/main/docs/releases.md)\n- [Commits](https://github.com/vitest-dev/vitest/commits/v4.1.0/packages/vitest)\n\n---\nupdated-dependencies:\n- dependency-name: vitest\n  dependency-version: 4.1.0\n  dependency-type: direct:development\n  dependency-group: npm_and_yarn\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
             "author_login": "dependabot[bot]"
           },
           {
-            "sha": "51566d198b28",
-            "date": "2026-05-19T02:25:45Z",
-            "message": "Merge pull request #193 from langchain-ai/dependabot/uv/python/uv-547659a86b\n\nchore(deps): Bump langsmith from 0.7.31 to 0.8.0 in /python in the uv group across 1 directory",
+            "sha": "cac07ba92025",
+            "date": "2026-06-03T23:47:59Z",
+            "message": "chore(deps): Bump aiohttp in /python in the uv group across 1 directory\n\n---\nupdated-dependencies:\n- dependency-name: aiohttp\n  dependency-version: 3.14.0\n  dependency-type: indirect\n  dependency-group: uv\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+            "author_login": "dependabot[bot]"
+          },
+          {
+            "sha": "6ecf9b54e13e",
+            "date": "2026-05-19T21:53:36Z",
+            "message": "Merge pull request #194 from langchain-ai/dependabot/npm_and_yarn/js/npm_and_yarn-da0aa30ced\n\nchore(deps): Bump brace-expansion from 5.0.5 to 5.0.6 in /js in the npm_and_yarn group across 1 directory",
             "author_login": "jkennedyvz"
           }
         ],
@@ -93,7 +93,7 @@
           },
           {
             "login": "jkennedyvz",
-            "contributions": 49
+            "contributions": 51
           },
           {
             "login": "catherine-langchain",
@@ -105,7 +105,7 @@
           },
           {
             "login": "dependabot[bot]",
-            "contributions": 35
+            "contributions": 37
           }
         ]
       },
@@ -125,14 +125,14 @@
     },
     "deepeval": {
       "github": {
-        "stars": 15931,
-        "forks": 1492,
-        "watchers": 61,
-        "open_issues_and_prs": 274,
+        "stars": 16063,
+        "forks": 1514,
+        "watchers": 62,
+        "open_issues_and_prs": 284,
         "default_branch": "main",
         "created_at": "2023-08-10T05:35:04Z",
-        "updated_at": "2026-06-05T10:33:20Z",
-        "pushed_at": "2026-06-05T09:54:34Z",
+        "updated_at": "2026-06-10T05:38:34Z",
+        "pushed_at": "2026-06-09T17:19:55Z",
         "license": "Apache-2.0",
         "latest_releases": [
           {
@@ -168,44 +168,44 @@
         ],
         "latest_commits": [
           {
-            "sha": "0431258b7d2b",
-            "date": "2026-06-05T09:54:30Z",
-            "message": "updated docs",
+            "sha": "6e87116385dc",
+            "date": "2026-06-09T17:19:51Z",
+            "message": "reformat",
             "author_login": "penguine-ip"
           },
           {
-            "sha": "3883665dcb73",
-            "date": "2026-06-04T18:36:57Z",
-            "message": "updated inspect hint",
+            "sha": "02a58c682e3c",
+            "date": "2026-06-09T16:59:59Z",
+            "message": ".",
             "author_login": "penguine-ip"
           },
           {
-            "sha": "a82569183e61",
-            "date": "2026-06-04T15:15:49Z",
-            "message": "Merge pull request #2722 from Aarkin7/fix/gemini-model-cost-calculation\n\nFix GeminiModel always reporting $0 evaluation cost",
+            "sha": "c95f8527d481",
+            "date": "2026-06-09T15:25:08Z",
+            "message": "Merge pull request #2740 from A-Vamshi/officialTestRun\n\nupdate docs",
             "author_login": "A-Vamshi"
           },
           {
-            "sha": "806fab3af905",
-            "date": "2026-06-04T14:03:05Z",
-            "message": "Merge pull request #2721 from StressTestor/fix/save-as-retrieved-context-data\n\nfix(dataset): serialize RetrievedContextData in save_as instead of crashing",
-            "author_login": "penguine-ip"
+            "sha": "621c82124018",
+            "date": "2026-06-09T15:23:50Z",
+            "message": "update docs",
+            "author_login": "A-Vamshi"
           },
           {
-            "sha": "db86236211eb",
-            "date": "2026-06-04T14:02:45Z",
-            "message": "Merge pull request #2720 from Aarkin7/fix/turn-faithfulness-empty-verdicts-tuple\n\nFix TurnFaithfulnessMetric crash on assistant turns with no claims",
+            "sha": "472c98c4ad73",
+            "date": "2026-06-09T15:04:57Z",
+            "message": "Merge pull request #2732 from A-Vamshi/officialTestRun\n\nAdd official test run method",
             "author_login": "penguine-ip"
           }
         ],
         "top_contributors_sample": [
           {
             "login": "penguine-ip",
-            "contributions": 4366
+            "contributions": 4383
           },
           {
             "login": "A-Vamshi",
-            "contributions": 1230
+            "contributions": 1248
           },
           {
             "login": "jwongster2",

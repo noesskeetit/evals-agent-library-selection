@@ -1,0 +1,99 @@
+{
+  "captured_at": "2026-06-10T07:24:14.438623+00:00",
+  "task": "Eval Agents base path library selection; four-way test matrix on a live LLM weather agent.",
+  "agent_under_test": {
+    "type": "weather_llm",
+    "model": "moonshotai/Kimi-K2.6",
+    "input": "Give me a short weather plan for Moscow, Russia for the next 3 days.",
+    "tools_called": [
+      "geocode_location",
+      "get_weather_forecast"
+    ],
+    "internet_tools": [
+      "Open-Meteo geocoding API",
+      "Open-Meteo forecast API"
+    ]
+  },
+  "judge": {
+    "provider": "cloudru_fm",
+    "base_url": "https://foundation-models.api.cloud.ru/v1",
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "max_tokens": 50000,
+    "reasoning_effort": "high",
+    "cloudru_host_in_no_proxy": true
+  },
+  "commands": {
+    "openevals": ".venv/bin/python -m evals_agent.runners.run_openevals --agent weather",
+    "deepeval": ".venv/bin/python -m evals_agent.runners.run_deepeval --agent weather"
+  },
+  "artifacts": {
+    "openevals": "artifacts/openevals/20260610T071859Z.json",
+    "deepeval": "artifacts/deepeval/20260610T071951Z.json"
+  },
+  "variants": [
+    {
+      "variant": "openevals_golden_path_llm_as_judge",
+      "library": "openevals",
+      "result_key": "trajectory_llm_as_judge",
+      "score": true,
+      "success": null,
+      "comment": "The actual trajectory is identical to the reference trajectory. It first geocodes Moscow, Russia, then uses the resulting coordinates to get a 3-day weather forecast. This matches the reference exactly, making it semantically equivalent, logical, and efficient. Thus, the score should be: true.",
+      "threshold": null,
+      "raw_key": "trajectory_accuracy",
+      "supporting_check": {
+        "score": true,
+        "success": null,
+        "comment": null,
+        "threshold": null,
+        "raw_key": "trajectory_strict_match"
+      },
+      "assessment": "Best native fit for reference trajectory checks; direct trajectory APIs are ergonomic."
+    },
+    {
+      "variant": "openevals_blackbox_llm_as_judge",
+      "library": "openevals",
+      "result_key": "blackbox_llm_as_judge",
+      "score": true,
+      "success": null,
+      "comment": "The final answer provides a concise weather plan for Moscow over the next 3 days, with specific dates (June 10, 11, 12), temperature highs and lows, precipitation and wind details, and practical recommendations (e.g., 'Good for outdoor activities', 'Dress light', 'Carry a light umbrella'). It also cites evidence from Open-Meteo. The answer is not vague, directly addresses the weather task, and contains no unsupported contradictions. Thus, the score should be: true.",
+      "threshold": null,
+      "raw_key": "blackbox_quality",
+      "assessment": "Works after Cloud.ru JSON adapter; compact API for custom rubrics."
+    },
+    {
+      "variant": "deepeval_golden_path_llm_as_judge",
+      "library": "deepeval",
+      "result_key": "trajectory_g_eval",
+      "score": 1.0,
+      "success": true,
+      "comment": "The Actual Output follows the expected golden path exactly: geocode_location then get_weather_forecast. It gathers evidence before the final answer, and every claim in the final answer is directly supported by the forecast observations (temperatures, conditions, precipitation, wind). No required tools are skipped and no unsupported claims are made.",
+      "threshold": 0.5,
+      "raw_key": null,
+      "supporting_check": {
+        "score": 1.0,
+        "success": true,
+        "comment": "[\n\t Tool Calling Reason: Exact match: expected ['geocode_location', 'get_weather_forecast'], called ['geocode_location', 'get_weather_forecast']. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+        "threshold": 1.0,
+        "raw_key": null
+      },
+      "assessment": "Works, but requires composing GEval over serialized trajectory plus ToolCorrectness support."
+    },
+    {
+      "variant": "deepeval_blackbox_llm_as_judge",
+      "library": "deepeval",
+      "result_key": "blackbox_g_eval",
+      "score": 1.0,
+      "success": true,
+      "comment": "The response directly addresses the request for a 3-day weather plan for Moscow, providing specific dates (June 10–12), temperature ranges, precipitation details, and wind speeds. It includes practical, actionable advice (e.g., 'Good for outdoor plans', 'Stay hydrated', 'Bring an umbrella') and cites forecast evidence from Open-Meteo. All details are consistent, no contradictions, and the answer is concise and fully aligned with the expected output.",
+      "threshold": 0.5,
+      "raw_key": null,
+      "assessment": "Works cleanly through GEval and custom Cloud.ru judge model."
+    }
+  ],
+  "selection": {
+    "recommended_base_path": "DeepEval",
+    "recommended_companion": "OpenEvals for native golden/reference trajectory cases",
+    "tracing_assessment_mode": "doc_based_not_live_otel_export",
+    "reason": "DeepEval wins community, scenario breadth, and the documented tracing/OTel story; OpenEvals wins native golden-path trajectory ergonomics. Live OTEL export was not tested in this R&D pass."
+  }
+}

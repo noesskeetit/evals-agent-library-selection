@@ -8,10 +8,22 @@ Final wiki-style draft:
 docs/eval-agents-base-path-wiki-draft.md
 ```
 
+Short teamlead version:
+
+```text
+docs/eval-agents-base-path-teamlead.md
+```
+
 Main live matrix artifact:
 
 ```text
-artifacts/comparison/eval_agents_weather_matrix_20260605T124508Z.json
+artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json
+```
+
+Negative cases (plausible hallucinated answer over a broken golden path):
+
+```text
+artifacts/negative/20260610T072334Z.json
 ```
 
 Reproduce:
@@ -23,6 +35,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 .venv/bin/python -m evals_agent.runners.run_openevals --agent weather
 .venv/bin/python -m evals_agent.runners.run_deepeval --agent weather
+.venv/bin/python -m evals_agent.runners.run_negative_cases
 .venv/bin/python -m evals_agent.runners.collect_research_snapshot
 .venv/bin/python -m evals_agent.runners.build_comparison
 ```

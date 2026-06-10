@@ -1,0 +1,121 @@
+{
+  "library": "negative_cases",
+  "mode": "live_or_skip",
+  "judge": {
+    "provider": "cloudru_fm",
+    "base_url": "https://foundation-models.api.cloud.ru/v1",
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "max_tokens": 50000,
+    "reasoning_effort": "high",
+    "cloudru_host_in_no_proxy": true
+  },
+  "openevals_version": "0.2.0",
+  "deepeval_version": "4.0.5",
+  "description": "Synthetic broken-golden-path runs with a plausible hallucinated final answer. Expectation: blackbox judges may PASS the answer text, while golden-path checks must FAIL the trajectory.",
+  "variants": {
+    "skipped_forecast": {
+      "agent_run_metadata": {
+        "fixture": "weather_negative_skipped_forecast",
+        "agent_type": "weather_llm",
+        "model": "synthetic/no-llm-hallucinated-answer",
+        "answer_text": "**Moscow 3-Day Weather Plan**\n\n- **June 10**: Light rain in the morning, 11-17 C, breezy up to 18 km/h.\n- **June 11**: Overcast with afternoon showers, 10-16 C, winds 15 km/h.\n- **June 12**: Clearing skies, 12-19 C, light winds around 8 km/h.\n\n**Plan**: Carry an umbrella on June 10-11; June 12 is the best day for outdoor activities. Dress in layers for cool mornings.",
+        "negative_variant": "skipped_forecast"
+      },
+      "tools_called": [
+        "geocode_location"
+      ],
+      "final_answer_preview": "- **June 10**: Light rain in the morning, 11-17 C, breezy up to 18 km/h.",
+      "openevals": {
+        "trajectory_match": {
+          "key": "trajectory_strict_match",
+          "score": false,
+          "comment": null,
+          "metadata": null
+        },
+        "blackbox_llm_as_judge": {
+          "key": "blackbox_quality",
+          "score": true,
+          "comment": "The final answer provides a concise 3-day weather plan for Moscow with specific dates (June 10-12), temperature ranges, precipitation details (light rain, afternoon showers, clearing skies), and wind speeds. It includes practical recommendations (umbrella, best day for outdoors, layering). The answer is not vague, directly addresses the weather task, and contains no obvious contradictions. Thus, the score should be: true.",
+          "metadata": null
+        },
+        "trajectory_llm_as_judge": {
+          "key": "trajectory_accuracy",
+          "score": false,
+          "comment": "The reference trajectory includes two steps: geocoding Moscow, Russia, and then getting the weather forecast. The actual trajectory only performs the geocoding step and stops, missing the weather forecast call entirely. This is not semantically equivalent to the reference, as it fails to complete the intended task. Thus, the score should be: false.",
+          "metadata": null
+        }
+      },
+      "deepeval": {
+        "tool_correctness": {
+          "score": 0.0,
+          "success": false,
+          "reason": "[\n\t Tool Calling Reason: Not an exact match: expected ['geocode_location', 'get_weather_forecast'], called ['geocode_location']. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+          "threshold": 1.0
+        },
+        "blackbox_g_eval": {
+          "score": 1.0,
+          "success": true,
+          "reason": "The response directly addresses the request with a concise 3-day weather plan, includes specific dates, temperatures, precipitation, and wind details, and provides practical recommendations (umbrella, outdoor activities, layering). It is consistent, not vague, and meets all evaluation criteria.",
+          "threshold": 0.5
+        },
+        "trajectory_g_eval": {
+          "score": 0.0,
+          "success": false,
+          "reason": "The actual output only calls geocode_location and omits the required get_weather_forecast tool. The final weather plan contains specific temperature, wind, and condition details that are not supported by any forecast observations, violating the expected golden path and evidence-gathering steps.",
+          "threshold": 0.5
+        }
+      }
+    },
+    "no_tools": {
+      "agent_run_metadata": {
+        "fixture": "weather_negative_no_tools",
+        "agent_type": "weather_llm",
+        "model": "synthetic/no-llm-hallucinated-answer",
+        "answer_text": "**Moscow 3-Day Weather Plan**\n\n- **June 10**: Light rain in the morning, 11-17 C, breezy up to 18 km/h.\n- **June 11**: Overcast with afternoon showers, 10-16 C, winds 15 km/h.\n- **June 12**: Clearing skies, 12-19 C, light winds around 8 km/h.\n\n**Plan**: Carry an umbrella on June 10-11; June 12 is the best day for outdoor activities. Dress in layers for cool mornings.",
+        "negative_variant": "no_tools"
+      },
+      "tools_called": [],
+      "final_answer_preview": "- **June 10**: Light rain in the morning, 11-17 C, breezy up to 18 km/h.",
+      "openevals": {
+        "trajectory_match": {
+          "key": "trajectory_strict_match",
+          "score": false,
+          "comment": null,
+          "metadata": null
+        },
+        "blackbox_llm_as_judge": {
+          "key": "blackbox_quality",
+          "score": true,
+          "comment": "The final answer provides a concise 3-day weather plan for Moscow with specific dates (June 10-12), temperature ranges, precipitation details (light rain, afternoon showers, clearing skies), and wind speeds. It includes practical recommendations (umbrella, best day for outdoors, layering). The answer is not vague, directly addresses the weather task, and contains no obvious contradictions. Thus, the score should be: true.",
+          "metadata": null
+        },
+        "trajectory_llm_as_judge": {
+          "key": "trajectory_accuracy",
+          "score": false,
+          "comment": "The reference trajectory contains two tool calls: geocode_location and get_weather_forecast. The actual trajectory is empty, containing no steps. This does not match the reference, lacks progression, and is not semantically equivalent. Thus, the score should be: false.",
+          "metadata": null
+        }
+      },
+      "deepeval": {
+        "tool_correctness": {
+          "score": 0.0,
+          "success": false,
+          "reason": "[\n\t Tool Calling Reason: Not an exact match: expected ['geocode_location', 'get_weather_forecast'], called []. See details above.\n\t Tool Selection Reason: No available tools were provided to assess tool selection criteria\n]\n",
+          "threshold": 1.0
+        },
+        "blackbox_g_eval": {
+          "score": 1.0,
+          "success": true,
+          "reason": "The response directly addresses the request with a concise 3-day weather plan, includes specific dates, temperatures, precipitation, and wind details, and provides practical recommendations (umbrella, outdoor activities, layering). It is consistent, not vague, and meets all evaluation criteria.",
+          "threshold": 0.5
+        },
+        "trajectory_g_eval": {
+          "score": 0.0,
+          "success": false,
+          "reason": "The Actual Output contains no tool calls at all, skipping the required geocode_location and get_weather_forecast steps entirely. The final answer provides specific weather details but is not grounded in any observations from tool calls, making it unsupported despite sounding plausible.",
+          "threshold": 0.5
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,17 @@
 # [Eval Agents] Оценка решений для base path Eval
 
-Дата среза: 2026-06-05.
+Дата среза: 2026-06-05. Независимая перепроверка: 2026-06-10.
 
 Статус: wiki-ready draft. Страницу в wiki пока не создавал; документ можно переносить как дочернюю страницу.
+
+Что сделано при перепроверке 2026-06-10 (вторым агентом, с нуля):
+
+- Перечитан весь код раннеров/адаптеров, прогнаны все unit-тесты (28 passed).
+- Заново выполнены оба live-прогона 2x2 — результаты воспроизвелись: тот же tool path, все 4 варианта pass. Свежие артефакты: `artifacts/openevals/20260610T071859Z.json`, `artifacts/deepeval/20260610T071951Z.json`.
+- Community-статистика собрана заново и независимо сверена прямыми запросами к GitHub API.
+- OTEL-выводы переведены из doc-based в code-based: проверены исходники установленных пакетов `deepeval==4.0.5` и `openevals==0.2.0` (детали в разделе про OpenTelemetry).
+- Добавлен и прогнан negative case — «агент-симулянт» с правдоподобным выдуманным прогнозом: Blackbox-судьи обеих библиотек поставили pass, все Golden Path-проверки поймали подлог. Это главный пробел первой версии — теперь закрыт live-прогоном.
+- Добавлен разбор G-Eval «с нуля» по исходникам DeepEval, включая нюанс с logprob-взвешиванием, который не работает с кастомными judge-моделями.
 
 ## Краткий вывод
 
@@ -12,7 +21,7 @@
 
 - DeepEval выигрывает по community support: сильно больше stars/forks, активнее релизы, больше contributor surface.
 - DeepEval шире как eval platform: `GEval`, DAG/custom metrics, RAG, agentic metrics, multi-turn, MCP, tracing, component-level evals.
-- DeepEval ближе к tracing/eval harness: есть собственный tracing layer и Confident AI path; OTEL path есть через Confident AI/интеграции. В этом R&D это **doc-based assessment**, live OTEL export отдельно не прогонялся.
+- DeepEval ближе к tracing/eval harness: есть собственный tracing layer и Confident AI path. Перепроверка 2026-06-10 подтвердила это на уровне кода: в пакете `deepeval` физически лежит OTEL-слой (`deepeval/tracing/otel/` с `ConfidentSpanExporter`, понимающим `gen_ai.*` semconv-атрибуты) и готовые инструментаторы для langchain, llama_index, pydantic_ai, crewai, google_adk, strands, agentcore, openinference. В `openevals` упоминаний opentelemetry ноль — его OTEL-путь живёт целиком в LangSmith. Live OTEL export end-to-end по-прежнему не прогонялся (нужен отдельный spike).
 - OpenEvals удобнее именно для Golden Path trajectory: `create_trajectory_match_evaluator` и `create_trajectory_llm_as_judge` принимают agent trajectory как first-class input.
 
 Практический выбор:
@@ -89,12 +98,15 @@ geocode_location -> get_weather_forecast -> final answer
 
 Артефакты live-прогонов:
 
-- `artifacts/openevals/20260605T124343Z.json`
-- `artifacts/deepeval/20260605T124504Z.json`
-- `artifacts/comparison/eval_agents_weather_matrix_20260605T124508Z.json`
-- `artifacts/comparison/research_snapshot.json`
+- `artifacts/openevals/20260605T124343Z.json` - оригинальный прогон 2026-06-05
+- `artifacts/deepeval/20260605T124504Z.json` - оригинальный прогон 2026-06-05
+- `artifacts/openevals/20260610T071859Z.json` - независимое воспроизведение 2026-06-10
+- `artifacts/deepeval/20260610T071951Z.json` - независимое воспроизведение 2026-06-10
+- `artifacts/negative/20260610T072334Z.json` - negative cases (агент-симулянт), 2026-06-10
+- `artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json` - актуальная сводная матрица
+- `artifacts/comparison/research_snapshot.json` - community snapshot 2026-06-10
 
-Предыдущие JSON-прогоны удалены. Source of truth для этой статьи - только artifacts из списка выше.
+Оба полных прогона (5 и 10 июня) сохранены сознательно: воспроизведение спустя 5 дней дало тот же tool path (`geocode_location -> get_weather_forecast`) и те же вердикты 4/4 pass. Воспроизводимость результата - сама по себе результат проверки.
 
 Важно про сравнение live-runs: OpenEvals и DeepEval запускались как два независимых прогона одного weather agent. Tool trace и weather observations совпали, но формулировка финального ответа может слегка отличаться из-за LLM nondeterminism. Для Golden Path source of truth - trace/tool calls, а не дословный текст ответа.
 
@@ -119,10 +131,81 @@ python -m evals_agent.runners.run_deepeval --agent weather
 Сводный JSON:
 
 ```text
-artifacts/comparison/eval_agents_weather_matrix_20260605T124508Z.json
+artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json
 ```
 
 Итог по тесту: обе библиотеки умеют закрыть оба сценария. Разница не в том, "можно или нельзя", а в том, насколько это native, расширяемо и удобно поддерживать на платформе.
+
+## Negative case: агент-симулянт, или зачем вообще нужен Golden Path
+
+Положительный прогон выше доказывает только "хороший агент проходит eval". Этого мало:
+главный риск agentic-систем - агент, который **не сделал работу, но красиво ответил**.
+Поэтому 2026-06-10 добавлен прогон с подложными run-ами (`run_negative_cases.py`):
+финальный ответ - правдоподобный, уверенный и полностью выдуманный план погоды
+("June 10: light rain, 11-17 C, breezy..."), при этом обязательный
+`get_weather_forecast` не вызывался вообще.
+
+Два варианта:
+
+- `skipped_forecast` - агент вызвал только `geocode_location`, прогноз сочинил;
+- `no_tools` - агент не вызвал ни одного tool, всё сочинил.
+
+Результат (артефакт `artifacts/negative/20260610T072334Z.json`):
+
+| Проверка | Тип | skipped_forecast | no_tools |
+|---|---|---:|---:|
+| OpenEvals `trajectory_match` (strict) | Golden, deterministic | **fail** | **fail** |
+| OpenEvals `trajectory_llm_as_judge` | Golden, LLM | **fail** | **fail** |
+| OpenEvals `llm_as_judge` (blackbox) | Blackbox, LLM | pass (!) | pass (!) |
+| DeepEval `ToolCorrectnessMetric` | Golden, deterministic | **fail** (0.0) | **fail** (0.0) |
+| DeepEval `GEval` trajectory | Golden, LLM | **fail** (0.0) | **fail** (0.0) |
+| DeepEval `GEval` blackbox | Blackbox, LLM | pass (!) (1.0) | pass (!) (1.0) |
+
+Оба Blackbox-судьи честно "купились" - и это **корректное поведение**, а не баг:
+blackbox видит только input, финальный ответ и expectation, выдуманные 11-17 C для
+него неотличимы от настоящих. Комментарий DeepEval blackbox-судьи на фейковый ответ:
+
+```text
+The response directly addresses the request with a concise 3-day weather plan,
+includes specific dates, temperatures, precipitation, and wind details...
+It is consistent, not vague, and meets all evaluation criteria.
+```
+
+А вот Golden Path-судья (DeepEval GEval над сериализованным trace) тот же самый ответ
+зарубил с правильной формулировкой:
+
+```text
+The actual output only calls geocode_location and omits the required
+get_weather_forecast tool. The final weather plan contains specific temperature,
+wind, and condition details that are not supported by any forecast observations,
+violating the expected golden path and evidence-gathering steps.
+```
+
+OpenEvals trajectory judge - аналогично:
+
+```text
+The actual trajectory only performs the geocoding step and stops, missing the
+weather forecast call entirely. This is not semantically equivalent to the reference.
+```
+
+Выводы для платформы:
+
+1. Blackbox и Golden Path - не "два варианта одного и того же", а два разных
+   детектора с непересекающимися слепыми зонами. Платформе нужны оба, и именно
+   поэтому в ТЗ они зафиксированы как два отдельных сценария.
+2. Обе библиотеки одинаково надёжно поймали оба negative-варианта на golden-уровне -
+   и детерминированно (match/ToolCorrectness), и через LLM-судью. По способности
+   ловить симулянта победителя нет.
+3. Дешёвый детерминированный matcher (`trajectory_match` / `ToolCorrectnessMetric`)
+   поймал всё то же, что и LLM-судья, бесплатно и без рисков нестабильности. Практика
+   для платформы: сначала deterministic gate, LLM-судью - вторым эшелоном для
+   нюансов (порядок обоснован? ответ grounded?).
+
+Воспроизведение:
+
+```bash
+.venv/bin/python -m evals_agent.runners.run_negative_cases
+```
 
 ## Главный вопрос: Golden Path, Blackbox и G-Eval
 
@@ -131,14 +214,152 @@ artifacts/comparison/eval_agents_weather_matrix_20260605T124508Z.json
 ```text
 Blackbox = сценарий оценки финального ответа
 Golden Path = сценарий оценки пути/trace агента
-G-Eval = метод LLM-as-judge в DeepEval
+G-Eval = метод LLM-as-judge в DeepEval (движок судейства, не сценарий)
 ```
 
-`G-Eval` не является третьим типом платформенного сценария на одном уровне с Blackbox и Golden Path. Это способ судить через LLM по критериям. Его можно использовать:
+Это понятия **разного уровня**, и в этом главная путаница. Blackbox и Golden Path
+отвечают на вопрос "ЧТО мы оцениваем" (ответ или путь). G-Eval отвечает на вопрос
+"КАК LLM-судья выставляет оценку". Поэтому G-Eval может обслуживать оба сценария:
 
-- для Blackbox, если в `LLMTestCase` положить input, actual output и expected output;
-- для Golden Path, если в `LLMTestCase.actual_output` положить serialized trace, а в `expected_output` - expected path;
-- для component-level eval, если запускать его внутри trace/span.
+- для Blackbox - в `LLMTestCase` кладём input, actual output и expected output;
+- для Golden Path - в `LLMTestCase.actual_output` кладём serialized trace, в `expected_output` - expected path;
+- для component-level eval - запускаем его внутри trace/span.
+
+Полная таблица различий (по результатам live-прогонов, включая negative cases):
+
+| | Blackbox LLM-as-Judge | Golden Path | G-Eval |
+|---|---|---|---|
+| Что это | Сценарий: судим финальный ответ | Сценарий: судим путь агента | Метод судейства в DeepEval: criteria -> чек-лист -> score |
+| Что на вход | `input` + `actual_output` + expected/rubric | actual trajectory + reference trajectory | Любые текстовые поля `LLMTestCase`, разрешённые в `evaluation_params` |
+| Что на выход | pass/fail или score + комментарий судьи | match bool / score + комментарий про tools и порядок | `score` 0..1 + `reason` + `success` (порог `threshold`) |
+| С чем имеем дело | Только финальный текст. Не диалог, не trace | Trajectory/trace: tool calls, аргументы, порядок, observations | С тем текстом, который сам сериализовал в test case |
+| Что ловит | Нерелевантный, пустой, вредный, не отвечающий на вопрос ответ | Пропущенный/лишний tool, неправильный порядок, ответ без evidence | Всё, что выразимо текстовым критерием над переданными полями |
+| Слепая зона | Выдуманные "факты" и несделанные вызовы - наш negative case прошёл blackbox с score 1.0 | Качество финального текста (если судим только путь) | Не видит ничего, что не положили в поля test case |
+| Цена | 1 LLM-вызов | 0 (deterministic match) или 1 LLM-вызов | 2 LLM-вызова (генерация шагов + вердикт), 1 - если шаги заданы руками |
+
+## Что такое G-Eval: объяснение с нуля
+
+### Идея на пальцах
+
+Начнём с проблемы. Хочется оценивать ответы LLM/агента не строковым сравнением, а
+"по смыслу". Очевидное решение - попросить другую LLM: "вот ответ, поставь оценку
+от 0 до 10". Это и есть LLM-as-judge. Но в лоб это работает плохо:
+
+- судья ставит оценки "на глазок" - сегодня 7, завтра за то же самое 9;
+- критерий "ответ должен быть полезным" каждый раз интерпретируется по-новому;
+- оценки кучкуются: модель почти всегда ставит 7-8, различить "хорошо" и "отлично" нельзя.
+
+G-Eval - это рецепт (из статьи Liu et al., 2023, arXiv:2303.16634, EMNLP 2023), как
+сделать LLM-судью дисциплинированным. Аналогия: ты - завкафедрой, нанимаешь
+экзаменатора (LLM-судью) и даёшь ему ТЗ одной фразой: "оцени, насколько ответ
+студента полный и обоснованный". Дальше два варианта:
+
+- Плохой экзаменатор читает ответ и ставит оценку по настроению.
+- Хороший - сначала превращает твою фразу в чек-лист ("1. все даты упомянуты,
+  2. есть цифры температуры, 3. есть практический совет"), потом проходит по
+  чек-листу пункт за пунктом и только потом ставит балл.
+
+G-Eval заставляет любую LLM быть вторым типом экзаменатора. Плюс один трюк со
+статистикой, чтобы оценка была дробной и стабильной (про него ниже).
+
+### Как это реально работает в DeepEval (проверено по исходникам 4.0.5)
+
+Когда вызываешь `metric.measure(test_case)`, под капотом происходит следующее:
+
+**Шаг 1. Критерий превращается в чек-лист (auto chain-of-thought).**
+Если ты передал только `criteria` (одну фразу), G-Eval делает отдельный LLM-вызов:
+"вот критерий, сгенерируй 3-4 evaluation steps". Получается JSON со списком шагов.
+Если передать `evaluation_steps` руками - этот вызов пропускается (и судья
+становится детерминированнее: чек-лист зафиксирован тобой, а не генерируется заново).
+
+**Шаг 2. Сборка промпта судьи.**
+В промпт попадают: нумерованный чек-лист + те и только те поля test case, которые
+ты разрешил в `evaluation_params` (например INPUT, ACTUAL_OUTPUT, EXPECTED_OUTPUT).
+Судью просят вернуть строгий JSON: `{"score": целое 0-10, "reason": "..."}`.
+
+**Шаг 3. Трюк с вероятностями токенов (probability-weighted score).**
+Проблема: LLM выдаёт целые числа, и они кучкуются. Решение из статьи: смотрим не
+только на то, какой score-токен модель выдала, а на **вероятности всех числовых
+токенов-кандидатов** (top-20 logprobs, отсекая всё с вероятностью < 1%). Если модель
+колебалась "8 с вероятностью 0.6 или 9 с вероятностью 0.4", итоговый score будет
+не 8, а 0.6*8 + 0.4*9 = 8.4. Получаем непрерывную шкалу и меньше дребезга.
+
+**Шаг 4. Нормализация и порог.**
+Сырой score из диапазона 0-10 нормализуется в 0..1: `(score - min) / (max - min)`.
+Дальше `success = score >= threshold` (default 0.5).
+
+Важный нюанс, найденный при перепроверке: **шаг 3 работает только с нативными
+моделями DeepEval** (OpenAI и совместимые, у которых движок может запросить
+`top_logprobs`). Для кастомной judge-модели (наш `CloudRuFMJudgeModel` поверх
+Cloud.ru FM API) ветка с logprobs недоступна - DeepEval тихо откатывается на сырой
+целочисленный score. Поэтому в наших артефактах score всегда ровно 1.0 или 0.0, а
+не 0.87. Для платформы это значит: с self-hosted/FM-судьёй G-Eval становится грубее
+(11 дискретных значений вместо непрерывной шкалы) - это надо учитывать при выборе
+threshold.
+
+Дополнительные режимы:
+
+- `strict_mode=True` - бинарный судья: только 0 или 1, без шкалы;
+- `rubric=[...]` - явная таблица "диапазон score -> что он значит" вместо свободной шкалы;
+- `evaluation_steps=[...]` - зафиксировать чек-лист руками (рекомендую для production: воспроизводимее и на 1 LLM-вызов дешевле).
+
+### Минимальный код
+
+```python
+from deepeval.metrics import GEval
+from deepeval.test_case import LLMTestCase, SingleTurnParams
+
+test_case = LLMTestCase(
+    input="Give me a short weather plan for Moscow for 3 days.",
+    actual_output="June 10: partly cloudy, 12-24 C, no rain...",
+    expected_output="A concise plan grounded in forecast data with dates and advice.",
+)
+
+metric = GEval(
+    name="Blackbox Quality",
+    # вариант 1: одна фраза - шаги сгенерирует LLM (+1 вызов)
+    criteria="Answer must mention dates, temperatures and practical advice.",
+    # вариант 2 (production): зафиксировать чек-лист руками, вызова не будет
+    # evaluation_steps=[
+    #     "Check that every forecast day has a date.",
+    #     "Check that temperatures and precipitation are mentioned.",
+    #     "Check that the answer gives practical recommendations.",
+    # ],
+    evaluation_params=[
+        SingleTurnParams.INPUT,
+        SingleTurnParams.ACTUAL_OUTPUT,
+        SingleTurnParams.EXPECTED_OUTPUT,
+    ],
+    model="gpt-4.1",   # или свой DeepEvalBaseLLM
+    threshold=0.5,
+)
+
+metric.measure(test_case)
+print(metric.score)    # 0..1, например 0.84
+print(metric.reason)   # текстовое объяснение судьи
+print(metric.success)  # score >= threshold
+```
+
+Что произойдёт под капотом для варианта 1:
+
+```text
+LLM call #1: "criteria -> сгенерируй 3-4 evaluation steps"   (auto-CoT)
+LLM call #2: "вот steps + поля test case -> JSON {score: 0-10, reason}"
+score 8 -> (опционально logprob-взвешивание -> 8.4) -> нормализация -> 0.84
+0.84 >= 0.5 -> success = True
+```
+
+### Чем G-Eval НЕ является
+
+- Это не отдельный сценарий оценки уровня платформы. Сценарии - Blackbox и Golden
+  Path. G-Eval - движок, которым можно реализовать судейство в обоих.
+- Это не "умный анализатор агента". G-Eval не знает, что такое tool call, trace или
+  диалог. Он видит ровно те текстовые поля, которые ты положил в `LLMTestCase` и
+  разрешил в `evaluation_params`. Хочешь судить путь агента - сам сериализуй trace
+  в текст (что мы и делаем в `trajectory_g_eval`).
+- Это не гарантия объективности. Это способ снизить дисперсию и привязать оценку к
+  чек-листу. Судья всё ещё LLM: на negative case наш blackbox G-Eval честно поставил
+  1.0 выдуманному прогнозу, потому что по переданным ему полям ответ был безупречен.
 
 ## Диалог, trajectory, trace и full trace
 
@@ -1207,49 +1428,71 @@ DeepEval Golden Path:
 
 ## Community support
 
-Snapshot из GitHub/PyPI на 2026-06-05T12:26:28Z:
+Snapshot из GitHub/PyPI на 2026-06-10T07:19:51Z (собран раннером и независимо сверен
+прямыми запросами к GitHub API - цифры совпали):
 
-| Библиотека | Stars | Forks | Последний push | PyPI version | PyPI releases |
-|---|---:|---:|---|---|---:|
-| OpenEvals | 1,068 | 97 | 2026-06-03 | 0.2.0 | 60 |
-| DeepEval | 15,931 | 1,492 | 2026-06-05 | 4.0.5 | 502 |
+| Библиотека | Stars | Forks | Последний push | PyPI version | PyPI releases | Последний релиз |
+|---|---:|---:|---|---|---:|---|
+| OpenEvals | 1,070 | 98 | 2026-06-07 | 0.2.0 | 60 | 2026-04-07 |
+| DeepEval | 16,063 | 1,514 | 2026-06-09 | 4.0.5 | 502 | 2026-05-28 |
 
-Вывод: **DeepEval выигрывает community support с большим отрывом**.
+Динамика между двумя срезами (5 дней): DeepEval +132 stars, OpenEvals +2. Темп
+релизов тоже разный: у DeepEval три релиза только за май (4.0.2 -> 4.0.3 -> 4.0.5),
+у OpenEvals последний релиз 0.2.0 - 7 апреля.
 
-OpenEvals моложе и активно развивается, но по зрелости сообщества DeepEval сейчас сильнее.
+Вывод: **DeepEval выигрывает community support с большим отрывом**, и разрыв растёт.
+
+OpenEvals моложе (создан 2025-02) и развивается, но по зрелости сообщества DeepEval
+(создан 2023-08) сейчас сильнее. Нюанс для честности: у DeepEval 284 открытых
+issues+PRs против 9 у OpenEvals - это следствие масштаба, но и сигнал, что
+поверхность библиотеки большая и не всё в ней одинаково вылизано.
 
 ## Гибкость eval-сценариев
 
+При перепроверке оба пакета проинспектированы по факту установленного кода, а не
+только по README. Точные цифры по `deepeval==4.0.5`: **51 класс метрик** в
+`deepeval.metrics`. У `openevals==0.2.0` модули: `llm`, `trajectory`, `exact`,
+`json`, `string`, `code`, `simulators` - компактный набор фабрик evaluator-функций
+(у каждой есть sync и async вариант).
+
 OpenEvals хорошо закрывает:
 
-- blackbox LLM-as-judge;
-- custom prompts;
+- blackbox LLM-as-judge (`create_llm_as_judge` + custom prompts);
 - structured output evals;
 - RAG-style prompts;
-- code evals;
-- exact/string/embedding metrics;
-- agent trajectory match;
+- code evals (`openevals.code`: LLM-судья по коду, статика pyright/mypy, sandbox-исполнение через E2B);
+- exact match / Levenshtein / embedding similarity;
+- agent trajectory match (4 режима: strict/unordered/subset/superset + режимы сравнения аргументов);
 - agent trajectory LLM-as-judge;
-- conversation prompts.
+- **multiturn-симуляция пользователя** (`run_multiturn_simulation`, `create_llm_simulated_user`) - в первой версии статьи это было пропущено: OpenEvals умеет не только судить диалог, но и генерировать его симулированным пользователем;
+- async-варианты всех evaluator-ов;
+- рядом живёт sister-пакет `agentevals` с graph trajectory evaluator-ами для LangGraph.
 
 DeepEval закрывает:
 
-- `GEval`;
-- DAG/custom metrics;
-- RAG metrics;
-- agentic metrics;
-- tool correctness;
-- task completion / goal accuracy / plan adherence patterns;
-- multi-turn evaluation;
-- conversational metrics;
-- MCP evaluation;
-- synthetic data / goldens;
-- tracing;
-- component-level evals;
+- `GEval` / `ConversationalGEval` / `ArenaGEval` (попарное сравнение кандидатов);
+- DAG/custom metrics (`DAGMetric`, `ConversationalDAGMetric` - деревья решений из узлов-судей);
+- RAG metrics (AnswerRelevancy, Faithfulness, Contextual Precision/Recall/Relevancy);
+- **выделенные agentic-метрики** - в первой версии статьи они были упомянуты одной строкой, по факту это отдельный пласт: `TaskCompletionMetric`, `PlanAdherenceMetric`, `PlanQualityMetric`, `StepEfficiencyMetric`, `GoalAccuracyMetric`, `ArgumentCorrectnessMetric`, `ToolUseMetric`, `ToolCorrectnessMetric`;
+- MCP evaluation (`MCPTaskCompletionMetric`, `MCPUseMetric`, `MultiTurnMCPUseMetric`);
+- multi-turn / conversational metrics (RoleAdherence, KnowledgeRetention, ConversationCompleteness, TopicAdherence...);
+- safety-метрики (Bias, Toxicity, PIILeakage, Misuse, NonAdvice, RoleViolation);
+- synthetic data / goldens (Synthesizer);
+- tracing + component-level evals (метрики на уровне span);
 - CLI reports / inspect flow;
 - Confident AI online evaluation path.
 
-Вывод: **DeepEval гибче как base path**. OpenEvals очень хорош как evaluator package, но DeepEval больше похож на полноценный eval harness.
+Важная оговорка про agentic-метрики DeepEval: самые интересные из них
+(например `TaskCompletionMetric`) имеют `requires_trace = True` - они считаются не
+над плоским `LLMTestCase`, а над trace, собранным через `@observe`-инструментацию
+DeepEval. То есть глубокая agentic-история DeepEval тянет за собой его tracing-слой.
+Это одновременно и сила (full trace доступен метрикам автоматически), и связывание
+с экосистемой DeepEval/Confident AI. В нашем тесте мы сознательно шли через плоский
+`LLMTestCase` + сериализованный trace, чтобы не инструментировать агента.
+
+Вывод прежний и усилившийся: **DeepEval гибче как base path**. OpenEvals очень хорош
+как evaluator package (и единственный из двух умеет симулировать пользователя в
+multiturn из коробки), но DeepEval - полноценный eval harness.
 
 ## OpenTelemetry / tracing
 
@@ -1278,24 +1521,51 @@ from deepeval.tracing import observe, update_current_trace, update_current_span
 
 В tracing docs есть модель trace/span, component-level evals и отправка в Confident AI. В Confident AI docs отдельно описан путь через OpenTelemetry для инструментирования без decorator changes.
 
+При перепроверке 2026-06-10 это проверено не по докам, а по исходникам установленного
+пакета `deepeval==4.0.5`:
+
+- В пакете физически есть OTEL-слой: `deepeval/tracing/otel/` с классом
+  `ConfidentSpanExporter(SpanExporter)` - это полноценный OpenTelemetry
+  span exporter, который маппит OTel-спаны (включая стандартные `gen_ai.*`
+  semantic conventions: модель, tool name, input/output) в типизированные
+  deepeval-спаны (`AgentSpan`, `LlmSpan`, `ToolSpan`, `RetrieverSpan`).
+- Рядом лежат готовые инструментаторы интеграций: `langchain`, `llama_index`,
+  `pydantic_ai`, `crewai`, `google_adk`, `strands`, `agentcore`, `hugging_face`,
+  `openinference` (`deepeval/integrations/`).
+- В `openevals==0.2.0` grep по `opentelemetry` даёт **ноль вхождений** - OTEL-путь
+  экосистемы LangChain живёт целиком на стороне LangSmith, сам пакет evaluator-ов
+  к трейсингу не прикасается.
+
 Практический смысл:
 
 ```text
-DeepEval -> metric engine + tracing primitives
-Confident AI -> trace UI / online evals / OTEL integrations
+DeepEval -> metric engine + tracing primitives + OTel SpanExporter в самом пакете
+Confident AI -> trace UI / online evals / OTEL ingestion
+OpenEvals -> только evaluator-функции; trace-инфраструктура = LangSmith
 ```
 
-Вывод: **по документации DeepEval сильнее для base path, если платформа хочет держать eval и trace ближе друг к другу**. Но это не live OTEL benchmark: экспорт OpenTelemetry span-ов в этом R&D не поднимался. Перед production-решением нужен отдельный spike: instrument sample agent, export OTEL traces, проверить linking trace/span/eval result и поведение при nested tool calls. Если компания уже выбирает LangSmith как trace backend, OpenEvals становится естественным companion.
+Важная честная оговорка: `ConfidentSpanExporter` экспортирует спаны в **Confident AI**
+(SaaS-платформу авторов DeepEval), а не в произвольный OTLP-backend. Если платформа
+хочет складывать трейсы в свой Jaeger/Tempo/ClickHouse и судить их там - из коробки
+этого не даёт ни одна из двух библиотек; понадобится свой OTLP-pipeline, а DeepEval
+использовать как metric engine поверх него. Вывод по критерию остаётся прежним:
+**DeepEval сильнее по tracing/OTEL-стори, теперь это подтверждено на уровне кода**,
+но live end-to-end OTEL export в этом R&D по-прежнему не прогонялся. Перед
+production-решением нужен отдельный spike: instrument sample agent, export OTEL
+traces, проверить linking trace/span/eval result и поведение при nested tool calls.
+Если компания уже выбирает LangSmith как trace backend, OpenEvals становится
+естественным companion.
 
 ## Итоговая оценка по критериям ТЗ
 
 | Критерий | Победитель | Почему |
 |---|---|---|
-| Поддержка сообществом | DeepEval | Больше stars/forks, старше проект, активнее релизная история. |
-| Гибкость eval-сценариев | DeepEval | Больше готовых метрик и сценариев за пределами single evaluator functions. |
-| OpenTelemetry/tracing story | DeepEval, doc-based | Ближе к integrated tracing/eval harness по документации; OpenEvals полагается на LangSmith ecosystem. Live OTEL export не тестировался. |
+| Поддержка сообществом | DeepEval | 16k vs 1k stars, старше проект, 3 релиза за последний месяц против релиза 2 месяца назад; разрыв растёт (+132 vs +2 stars за 5 дней). |
+| Гибкость eval-сценариев | DeepEval | 51 класс метрик, включая agentic/MCP/conversational/safety пласты; у OpenEvals компактный набор evaluator-фабрик (но есть уникальная multiturn-симуляция пользователя). |
+| OpenTelemetry/tracing story | DeepEval, подтверждено кодом | В пакете есть `ConfidentSpanExporter` (OTel SpanExporter с поддержкой `gen_ai.*` semconv) и 9 готовых инструментаторов; в openevals OTEL отсутствует полностью, его путь - LangSmith. Live e2e export не прогонялся. |
 | Golden Path ergonomics | OpenEvals | Native trajectory APIs, меньше adapter-кода. |
 | Blackbox ergonomics | Ничья / легкий плюс DeepEval для platform base | Оба удобны; DeepEval лучше ложится в единый `LLMTestCase` контракт. |
+| Устойчивость к агенту-симулянту (negative case) | Ничья | Обе библиотеки поймали оба negative-варианта и deterministic-проверкой, и LLM-судьёй; оба blackbox-судьи одинаково "купились" (так и должно быть). |
 
 Финальный выбор:
 
@@ -1367,17 +1637,15 @@ DeepEval golden LLM-as-judge:
 ## Что улучшить дальше
 
 1. Расширить OpenEvals adapter до full transcript: добавить `user`, `tool` messages с observations и финальный `assistant` answer, а не только assistant `tool_calls`.
-2. Добавить negative test cases:
-   - агент не вызвал `get_weather_forecast`;
-   - агент вызвал tools в неправильном порядке;
-   - агент дал хороший текст, но не grounded в observation;
-   - агент вызвал лишний tool.
-3. Прогнать multi-turn scenario, потому DeepEval и OpenEvals оба имеют conversation/multi-turn capabilities.
+2. ~~Добавить negative test cases~~ - **сделано 2026-06-10** для двух главных вариантов (`skipped_forecast`, `no_tools`), см. раздел "Negative case: агент-симулянт". Остались непрогнанными варианты "неправильный порядок tools" и "лишний tool" - детерминированные matchers поймают их по построению (strict mode сравнивает последовательность), но live-подтверждение с LLM-судьёй не делалось.
+3. Прогнать multi-turn scenario: у DeepEval есть conversational metrics, у OpenEvals - симуляция пользователя (`run_multiturn_simulation`), интересно столкнуть их на одном диалоге.
 4. Если платформа реально будет на OTEL, сделать отдельный spike:
-   - export trace через OTEL;
+   - export trace через OTEL (у DeepEval - `ConfidentSpanExporter`, у LangChain-стека - LangSmith OTEL ingestion);
    - завести один eval run в LangSmith;
    - завести один eval run в Confident AI;
+   - проверить, можно ли увести спаны в свой OTLP-backend (Jaeger/Tempo), минуя SaaS;
    - сравнить, где меньше glue-кода для production path.
+5. Для production G-Eval: зафиксировать `evaluation_steps` руками (воспроизводимость + минус один LLM-вызов) и проверить судью на калибровочном наборе known-good/known-bad кейсов (заготовка уже есть в `src/evals_agent/calibration.py`, но она прогонялась только для фикстурного агента).
 
 ## Команды воспроизведения
 
@@ -1389,6 +1657,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 .venv/bin/python -m evals_agent.runners.run_openevals --agent weather
 .venv/bin/python -m evals_agent.runners.run_deepeval --agent weather
+.venv/bin/python -m evals_agent.runners.run_negative_cases
 .venv/bin/python -m evals_agent.runners.collect_research_snapshot
 .venv/bin/python -m evals_agent.runners.build_comparison
 ```
@@ -1406,6 +1675,8 @@ FM_API_KEY=<cloud.ru foundation models key>
 - OpenEvals repo: https://github.com/langchain-ai/openevals
 - OpenEvals LLM-as-judge: https://github.com/langchain-ai/openevals#llm-as-judge
 - OpenEvals trajectory LLM-as-judge: https://github.com/langchain-ai/openevals#trajectory-llm-as-judge
+- AgentEvals (graph trajectory для LangGraph): https://github.com/langchain-ai/agentevals
+- G-Eval paper (Liu et al., 2023, EMNLP): https://arxiv.org/abs/2303.16634
 - DeepEval repo: https://github.com/confident-ai/deepeval
 - DeepEval test cases: https://deepeval.com/docs/evaluation-test-cases
 - DeepEval G-Eval: https://deepeval.com/docs/metrics-llm-evals
