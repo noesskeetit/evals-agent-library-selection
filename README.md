@@ -13,7 +13,7 @@ OpenEvals is not required as a platform dependency. It has a more native Golden 
 | Document | Purpose |
 |---|---|
 | `docs/eval-agents-base-path-teamlead.md` | Short wiki-ready summary for review/decision. |
-| `docs/eval-agents-base-path-teamlead-confluence.html` | Rendered copy for pasting formatted content into Confluence. |
+| `docs/eval-agents-base-path-teamlead-confluence-paste.txt` | Paste-safe plain text copy for Confluence. |
 | `docs/eval-agents-base-path-wiki-draft.md` | Full technical research note with details and evidence. |
 
 ## Key Artifacts
