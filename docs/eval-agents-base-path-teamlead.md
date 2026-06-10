@@ -82,22 +82,201 @@ Snapshot 2026-06-10:
 
 ## Golden Path, Blackbox и G-Eval
 
-| Термин | Что это | Вход | Выход | Формат |
-|---|---|---|---|---|
-| Blackbox | Оценка финального ответа | `input`, `actual_output`, `expected_output`, rubric | score/pass + reason | финальный текст, не trace |
-| Golden Path | Оценка пути агента | actual trajectory/trace + expected trajectory/trace | match/score + reason | tool calls, порядок, args, observations |
-| G-Eval | Метод LLM-as-judge в DeepEval | поля `LLMTestCase`, указанные в `evaluation_params` | `score`, `success`, `reason` | текст, который мы сами положили в test case |
+Здесь три разных слоя:
 
-G-Eval не третий сценарий рядом с Blackbox и Golden Path. Blackbox/Golden Path отвечают **что оцениваем**, G-Eval отвечает **как LLM-судья ставит оценку**.
+```text
+Blackbox / Golden Path = что оцениваем
+G-Eval = как DeepEval делает LLM-as-judge
+Диалог / trajectory / trace / full trace = какой формат данных подаём
+```
 
-Форматы:
+### Форматы
 
-| Формат | Что содержит | Для чего хватает |
-|---|---|---|
-| Диалог | user/assistant messages | обычно Blackbox |
-| Trajectory | последовательность tool calls | Golden Path по порядку действий |
-| Trace | tool calls + args + observations + final answer | Golden Path + grounding |
-| Full trace | trace + spans/timing/errors/cost/thread metadata | observability/OTEL/debug |
+| Формат | Что содержит | Пример | Для чего хватает |
+|---|---|---|---|
+| `input + output` | задача + финальный ответ | `дай погоду` -> `завтра дождь` | Blackbox |
+| Диалог | user/assistant messages, иногда multi-turn | `user -> assistant -> user -> assistant` | Blackbox по диалогу |
+| Trajectory | последовательность действий | `geocode -> forecast` | Golden Path по порядку |
+| Trace | trajectory + args + observations + final answer | tool call + tool result + answer | Golden Path + grounding |
+| Full trace | trace + spans/timing/errors/metadata/costs | OTEL trace tree | observability/debug |
+
+Для weather agent различие такое:
+
+```text
+Input:
+Give me a short weather plan for Moscow for 3 days.
+
+Blackbox sees:
+input + final answer
+
+Golden Path sees:
+geocode_location -> get_weather_forecast
+
+Trace:
+1. geocode_location({"location": "Moscow"})
+   observation: {"lat": 55.75, "lon": 37.61}
+
+2. get_weather_forecast({"lat": 55.75, "lon": 37.61})
+   observation: {"forecast": [...]}
+
+3. final answer: "June 10..."
+
+Full trace:
+trace_id=abc123
+  span: agent.run
+    span: llm.call
+    span: tool.geocode_location
+    span: tool.get_weather_forecast
+    span: llm.final_answer
+    span: eval.blackbox
+    span: eval.golden_path
+```
+
+### Blackbox
+
+Blackbox отвечает на вопрос: **хороший ли финальный ответ для пользователя?**
+
+Типичный вход:
+
+```python
+{
+    "input": "Give me a short weather plan for Moscow for 3 days.",
+    "actual_output": "June 10: partly cloudy, 18-25 C, no rain...",
+    "expected_output": "Answer should mention dates, temperatures, precipitation and practical advice.",
+    "rubric": "Judge whether the final answer is useful, grounded-looking and complete.",
+}
+```
+
+С чем имеем дело: `input + final answer` или `dialogue + final answer`. Не trace, не tool calls, не observations.
+
+Типичный выход:
+
+```json
+{
+  "score": 1.0,
+  "success": true,
+  "reason": "The answer includes dates, temperatures, precipitation and useful advice."
+}
+```
+
+Blackbox хорошо ловит нерелевантный, пустой или плохой ответ. Но он плохо ловит ситуацию, когда агент **не сделал работу, но красиво ответил**. В нашем negative case blackbox поставил pass фейковому прогнозу, потому что видел только хороший текст.
+
+### Golden Path
+
+Golden Path отвечает на вопрос: **агент решал задачу правильным способом?**
+
+Типичный вход:
+
+```python
+{
+    "actual_trace": [
+        {
+            "tool_name": "geocode_location",
+            "arguments": {"location": "Moscow, Russia"},
+            "observation": {"latitude": 55.75, "longitude": 37.61},
+        },
+        {
+            "tool_name": "get_weather_forecast",
+            "arguments": {"latitude": 55.75, "longitude": 37.61},
+            "observation": {"forecast": [...]},
+        },
+    ],
+    "expected_trace": [
+        {"tool_name": "geocode_location"},
+        {"tool_name": "get_weather_forecast"},
+    ],
+    "rubric": "Check missing tools, extra tools, order and grounding.",
+}
+```
+
+С чем имеем дело: trajectory/trace, tool calls, порядок, args, observations, иногда final answer.
+
+Типичный выход:
+
+```json
+{
+  "score": 0.0,
+  "success": false,
+  "reason": "The agent called geocode_location but skipped get_weather_forecast. Final weather claims are unsupported."
+}
+```
+
+Golden Path ловит пропущенные tools, неправильный порядок, лишние tools, неверные аргументы и ответ без evidence. Но сам по себе может не оценить UX/качество текста, поэтому не заменяет Blackbox.
+
+### G-Eval
+
+G-Eval - это **не третий сценарий рядом с Blackbox и Golden Path**. Это способ LLM-as-judge оценки в DeepEval.
+
+Он отвечает на вопрос: **как DeepEval просит LLM-судью выставить score по критериям?**
+
+Для Blackbox:
+
+```python
+test_case = LLMTestCase(
+    input="Give me weather plan for Moscow",
+    actual_output="June 10: partly cloudy...",
+    expected_output="Answer should mention dates, weather evidence and advice.",
+)
+
+metric = GEval(
+    name="Blackbox Quality",
+    criteria="Check whether the answer is useful and complete.",
+    evaluation_params=[
+        SingleTurnParams.INPUT,
+        SingleTurnParams.ACTUAL_OUTPUT,
+        SingleTurnParams.EXPECTED_OUTPUT,
+    ],
+    model=judge_model,
+)
+```
+
+Здесь G-Eval видит только `input`, `actual_output`, `expected_output`. Он не видит trace.
+
+Для Golden Path через G-Eval надо самому положить trace в текст:
+
+```python
+trajectory_case = LLMTestCase(
+    input=case.input,
+    actual_output="""
+Actual trajectory:
+1. geocode_location args={"location": "Moscow"}
+   observation={"latitude": 55.75, "longitude": 37.61}
+
+2. get_weather_forecast args={"latitude": 55.75}
+   observation={"forecast": [...]}
+
+Final answer:
+June 10: partly cloudy...
+""",
+    expected_output="Expected path: geocode_location -> get_weather_forecast",
+)
+
+metric = GEval(
+    name="Golden Path Trajectory",
+    criteria="Check tool order, missing tools, extra tools and grounding.",
+    evaluation_params=[
+        SingleTurnParams.INPUT,
+        SingleTurnParams.ACTUAL_OUTPUT,
+        SingleTurnParams.EXPECTED_OUTPUT,
+    ],
+    model=judge_model,
+)
+```
+
+То есть G-Eval работает с тем, что мы сами положили в `LLMTestCase`.
+
+| Вопрос | Blackbox | Golden Path | G-Eval |
+|---|---|---|---|
+| Это что? | Сценарий eval | Сценарий eval | Метод LLM-судейства в DeepEval |
+| Что оценивает? | Финальный ответ | Путь агента | То, что положили в `LLMTestCase` |
+| Видит tools? | Нет | Да | Только если сериализовали trace |
+| Видит observations? | Нет | Может видеть | Только если положили в текст |
+| Работает с dialogue? | Да | Обычно нет | Да, если dialogue положили в test case |
+| Работает с full trace? | Обычно нет | Да, если adapter поддерживает | Да, если full trace сериализован |
+| Ловит красивую галлюцинацию без tool calls? | Обычно нет | Да | Да, если это Golden Path G-Eval; нет, если Blackbox G-Eval |
+| Типичный output | score + reason | match/score + reason | score + success + reason |
+
+Короткая формула: **Blackbox работает с ответом. Golden Path работает с trace/trajectory. G-Eval работает с тем текстом, который положили в `LLMTestCase`.**
 
 ## Как выглядят evals в коде
 
