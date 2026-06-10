@@ -1,117 +1,115 @@
-# [Eval Agents]
+h1. [Eval Agents] Короткая версия для тимлида
 
-## Решение
+Дата среза: 2026-06-10.
+Полная версия с деталями: {{docs/eval-agents-base-path-wiki-draft.md}}.
 
-**Выбираем DeepEval как base path платформы.**
+h2. Решение
 
-OpenEvals не берём как обязательную зависимость. У него более нативный Golden Path API, но это не критично: DeepEval закрывает тот же сценарий через `ToolCorrectnessMetric` и `GEval` над serialized trace.
+*Выбираем DeepEval как base path платформы.*
+
+OpenEvals не берём как обязательную зависимость. У него более нативный Golden Path API, но это не критично: DeepEval закрывает тот же сценарий через {{ToolCorrectnessMetric}} и {{GEval}} над serialized trace.
 
 Практический выбор:
 
-```text
+{code}
 Required: DeepEval
 Optional later: OpenEvals, только если native trajectory API реально начнёт экономить поддержку
 Internal contract: EvalCase, не формат конкретной библиотеки
-```
+{code}
 
 Почему DeepEval:
 
-- сильнее community;
-- шире набор eval-сценариев;
-- лучше tracing/OTEL story;
-- закрывает оба сценария из ТЗ: Blackbox и Golden Path.
+* сильнее community;
+* шире набор eval-сценариев;
+* лучше tracing/OTEL story;
+* закрывает оба сценария из ТЗ: Blackbox и Golden Path.
 
-## Что тестировали
+h2. Что тестировали
 
-Агент: LLM-powered погодный агент на `moonshotai/Kimi-K2.6` с Open-Meteo tools.
+Агент: LLM-powered погодный агент на {{moonshotai/Kimi-K2.6}} с Open-Meteo tools.
 
-```text
+{code}
 Task:
 Give me a short weather plan for Moscow, Russia for the next 3 days.
 
 Actual path:
 geocode_location -> get_weather_forecast -> final answer
-```
+{code}
 
 Матрица 2x2:
 
-| Variant | Library | Сценарий | Результат |
-|---|---|---|---:|
-| `openevals_golden_path_llm_as_judge` | OpenEvals | Golden Path по trajectory | pass |
-| `openevals_blackbox_llm_as_judge` | OpenEvals | Blackbox по final answer | pass |
-| `deepeval_golden_path_llm_as_judge` | DeepEval | `ToolCorrectnessMetric` + `GEval` по trace | pass |
-| `deepeval_blackbox_llm_as_judge` | DeepEval | `GEval` по `LLMTestCase` | pass |
+|| Variant || Library || Сценарий || Результат ||
+| {{openevals_golden_path_llm_as_judge}} | OpenEvals | Golden Path по trajectory | pass |
+| {{openevals_blackbox_llm_as_judge}} | OpenEvals | Blackbox по final answer | pass |
+| {{deepeval_golden_path_llm_as_judge}} | DeepEval | {{ToolCorrectnessMetric}} + {{GEval}} по trace | pass |
+| {{deepeval_blackbox_llm_as_judge}} | DeepEval | {{GEval}} по {{LLMTestCase}} | pass |
 
 Артефакты:
 
-- `artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json`
-- `artifacts/openevals/20260610T071859Z.json`
-- `artifacts/deepeval/20260610T071951Z.json`
-- `artifacts/negative/20260610T072334Z.json`
+* {{artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json}}
+* {{artifacts/openevals/20260610T071859Z.json}}
+* {{artifacts/deepeval/20260610T071951Z.json}}
+* {{artifacts/negative/20260610T072334Z.json}}
 
-## Сравнение по критериям ТЗ
+h2. Сравнение по критериям ТЗ
 
-| Критерий | Вывод |
-|---|---|
+|| Критерий || Вывод ||
 | Community | DeepEval заметно сильнее: 16k stars / 1.5k forks против 1k / 98 у OpenEvals. |
 | Гибкость eval-сценариев | DeepEval шире: RAG, agentic metrics, DAG/custom metrics, multi-turn, MCP, tracing. |
-| OpenTelemetry / tracing | DeepEval сильнее: есть свой `deepeval.tracing` и OTEL/Confident AI path. У OpenEvals OTEL-путь идёт через LangSmith ecosystem. Live OTEL export отдельно не поднимался. |
+| OpenTelemetry / tracing | DeepEval сильнее: есть свой {{deepeval.tracing}} и OTEL/Confident AI path. У OpenEvals OTEL-путь идёт через LangSmith ecosystem. Live OTEL export отдельно не поднимался. |
 | Golden Path ergonomics | OpenEvals удобнее: trajectory для него native input. Но это ergonomics, не blocker: в DeepEval тот же сценарий делается adapter-ом. |
 
-Итог по критериям: **DeepEval выигрывает как base path**. OpenEvals полезен как reference point по API, но не обязателен.
+Итог по критериям: *DeepEval выигрывает как base path*. OpenEvals полезен как reference point по API, но не обязателен.
 
-## Golden Path, Blackbox и G-Eval
+h2. Golden Path, Blackbox и G-Eval
 
 Главное различие:
 
-```text
+{code}
 Blackbox = оцениваем финальный ответ
 Golden Path = оцениваем путь агента
 G-Eval = механизм LLM-as-judge в DeepEval
-```
+{code}
 
 Форматы данных:
 
-| Формат | Что содержит | Где нужен |
-|---|---|---|
-| `input + output` | задача + финальный ответ | Blackbox |
+|| Формат || Что содержит || Где нужен ||
+| {{input + output}} | задача + финальный ответ | Blackbox |
 | Диалог | user/assistant messages | Blackbox по multi-turn |
 | Trajectory | последовательность tool calls | Golden Path по порядку действий |
 | Trace | tool calls + args + observations + final answer | Golden Path + grounding |
 | Full trace | trace + spans/timing/errors/metadata/costs | observability/OTEL/debug |
 
-### Blackbox
+h3. Blackbox
 
-Blackbox отвечает на вопрос: **хороший ли финальный ответ для пользователя?**
+Blackbox отвечает на вопрос: *хороший ли финальный ответ для пользователя?*
 
 Вход:
 
-```python
+{code:language=python}
 {
     "input": user_task,
     "actual_output": agent_final_answer,
     "expected_output": reference_expectation,
     "criteria": evaluation_criteria,
 }
-```
-
-`criteria` — это критерии оценки / короткая инструкция LLM-судье.
+{code}
 
 Выход:
 
-```python
+{code:language=python}
 {"score": 1.0, "success": True, "reason": "..."}
-```
+{code}
 
 С чем имеем дело: финальный текст или диалог. Blackbox не видит tool calls и не доказывает, что агент реально сходил за evidence.
 
-### Golden Path
+h3. Golden Path
 
-Golden Path отвечает на вопрос: **агент прошёл правильный путь?**
+Golden Path отвечает на вопрос: *агент прошёл правильный путь?*
 
 Вход:
 
-```python
+{code:language=python}
 {
     "actual_trace": [
         {"tool_name": "geocode_location", "arguments": {...}, "observation": {...}},
@@ -122,53 +120,53 @@ Golden Path отвечает на вопрос: **агент прошёл пра
         {"tool_name": "get_weather_forecast"},
     ],
 }
-```
+{code}
 
 Выход:
 
-```python
+{code:language=python}
 {"score": 1.0, "success": True, "reason": "..."}
-```
+{code}
 
 С чем имеем дело: trajectory/trace, порядок tools, args, observations и иногда final answer. Golden Path ловит missing/extra tools, неправильный порядок и ответ без evidence.
 
-### G-Eval
+h3. G-Eval
 
 G-Eval не отдельный сценарий. Это способ DeepEval попросить LLM-судью выставить score по критериям.
 
-Для Blackbox G-Eval видит только поля `LLMTestCase`:
+Для Blackbox G-Eval видит только поля {{LLMTestCase}}:
 
-```python
+{code:language=python}
 LLMTestCase(
     input=user_task,
     actual_output=agent_final_answer,
     expected_output=reference_expectation,
 )
-```
+{code}
 
 Для Golden Path через G-Eval мы сами кладём trace в текст:
 
-```python
+{code:language=python}
 LLMTestCase(
     input=user_task,
     actual_output=serialize_trace_with_observations(agent_trace),
     expected_output="Expected path: geocode_location -> get_weather_forecast",
 )
-```
+{code}
 
 Коротко:
 
-```text
+{code}
 Blackbox работает с ответом.
 Golden Path работает с trace/trajectory.
 G-Eval работает с тем, что мы положили в LLMTestCase.
-```
+{code}
 
-## Примеры eval-кода
+h2. Примеры eval-кода
 
-### DeepEval Blackbox
+h3. DeepEval Blackbox
 
-```python
+{code:language=python}
 test_case = LLMTestCase(
     input=case.input,
     actual_output=case.actual_output,
@@ -188,13 +186,13 @@ metric = GEval(
 )
 
 result = metric.measure(test_case)
-```
+{code}
 
-### DeepEval Golden Path
+h3. DeepEval Golden Path
 
 Deterministic gate:
 
-```python
+{code:language=python}
 test_case = LLMTestCase(
     input=case.input,
     actual_output=case.actual_output,
@@ -215,11 +213,11 @@ metric = ToolCorrectnessMetric(
 )
 
 result = metric.measure(test_case)
-```
+{code}
 
 LLM-as-judge по trace:
 
-```python
+{code:language=python}
 trajectory_case = LLMTestCase(
     input=case.input,
     actual_output=serialize_trace_with_observations(case),
@@ -237,11 +235,11 @@ metric = GEval(
     model=judge_model,
     threshold=0.5,
 )
-```
+{code}
 
-### OpenEvals Golden Path, для сравнения
+h3. OpenEvals Golden Path, для сравнения
 
-```python
+{code:language=python}
 outputs = to_openai_tool_call_messages(case.actual_tools)
 reference_outputs = to_openai_tool_call_messages(case.expected_tools)
 
@@ -254,36 +252,36 @@ result = evaluator(
     outputs=outputs,
     reference_outputs=reference_outputs,
 )
-```
+{code}
 
 Это короче и нативнее, чем DeepEval-вариант. Но разница только в удобстве adapter-а, не в возможности закрыть сценарий.
 
-## Можно ли без OpenEvals?
+h2. Можно ли без OpenEvals?
 
-Да. Выбираем **DeepEval-only** как основной путь.
+Да. Выбираем *DeepEval-only* как основной путь.
 
 Что нужно сделать в платформе:
 
-1. завести нейтральный `EvalCase`;
-2. для Blackbox маппить его в `LLMTestCase + GEval`;
-3. для Golden Path маппить trace в `ToolCall[]`;
-4. для Golden Path LLM-as-Judge сериализовать trace в `LLMTestCase.actual_output`;
-5. нормализовать output всех evals к единому формату платформы.
+# завести нейтральный {{EvalCase}};
+# для Blackbox маппить его в {{LLMTestCase + GEval}};
+# для Golden Path маппить trace в {{ToolCall[]}};
+# для Golden Path LLM-as-Judge сериализовать trace в {{LLMTestCase.actual_output}};
+# нормализовать output всех evals к единому формату платформы.
 
 OpenEvals можно добавить позже только если native trajectory API начнёт реально экономить поддержку. На текущий момент это optional, не обязательная зависимость.
 
-## Итог
+h2. Итог
 
-```text
+{code}
 Base path: DeepEval-only
 OpenEvals: optional, не обязательная зависимость
 Reason: DeepEval выигрывает по community, гибкости сценариев и tracing/OTEL story
 Trade-off: Golden Path в OpenEvals нативнее, но в DeepEval реализуется без критичной сложности
-```
+{code}
 
 Минимальный platform contract:
 
-```python
+{code:language=python}
 EvalCase(
     input=user_task,
     actual_output=agent_final_answer,
@@ -292,14 +290,14 @@ EvalCase(
     expected_tools=golden_path.tool_calls,
     criteria=evaluation_criteria,
 )
-```
+{code}
 
-## Где что лежит
+h2. Где что лежит
 
-- Репозиторий: `https://github.com/noesskeetit/evals-agent-library-selection`
-- Короткая статья: `docs/eval-agents-base-path-teamlead.md`
-- Confluence-копия: `docs/eval-agents-base-path-teamlead-confluence.wiki`
-- Полная техническая версия: `docs/eval-agents-base-path-wiki-draft.md`
-- Основная матрица: `artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json`
-- Negative cases: `artifacts/negative/20260610T072334Z.json`
-- Runners: `src/evals_agent/runners/`
+* Репозиторий: {{https://github.com/noesskeetit/evals-agent-library-selection}}
+* Короткая статья: {{docs/eval-agents-base-path-teamlead.md}}
+* Confluence-копия: {{docs/eval-agents-base-path-teamlead-confluence.wiki}}
+* Полная техническая версия: {{docs/eval-agents-base-path-wiki-draft.md}}
+* Основная матрица: {{artifacts/comparison/eval_agents_weather_matrix_20260610T072414Z.json}}
+* Negative cases: {{artifacts/negative/20260610T072334Z.json}}
+* Runners: {{src/evals_agent/runners/}}
